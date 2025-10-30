@@ -1,13 +1,17 @@
 """Web scraper for Tesla Partner Portal leads."""
 import hashlib
 import json
+import random
+import time
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
+import socket
 from playwright.sync_api import sync_playwright
 from config import PORTAL_URL, PAGE_TIMEOUT, TABLE_SOURCES
 from utils_text import normalize_key
 from auth import login_if_needed
+from models import db, ScraperAttempt
 
 def extract_headers(table) -> List[str]:
     """Extract and normalize table headers."""
@@ -43,11 +47,33 @@ def guess_primary_key(row: Dict) -> str:
     row_str = json.dumps(dict(sorted(row.items())), ensure_ascii=False)
     return hashlib.sha256(row_str.encode()).hexdigest()[:8]
 
+def log_scraper_attempt(success: bool, error: str = None):
+    """Log a scraper connection attempt."""
+    attempt = ScraperAttempt(
+        success=success,
+        ip_address=socket.gethostbyname(socket.gethostname()),
+        error=error
+    )
+    db.session.add(attempt)
+    db.session.commit()
+
+def log_scraper_attempt(success: bool, error: str = None):
+    """Log a scraper connection attempt."""
+    attempt = ScraperAttempt(
+        success=success,
+        ip_address=socket.gethostbyname(socket.gethostname()),
+        error=error
+    )
+    db.session.add(attempt)
+    db.session.commit()
+
+def random_delay():
+    """Wait for a random time between 5 and 20 minutes."""
+    delay = random.randint(5 * 60, 20 * 60)  # Convert to seconds
+    time.sleep(delay)
+
 def fetch_leads(logger: logging.Logger) -> List[Dict]:
-    """Fetch all leads from Tesla Partner Portal.
-    
-    Returns:
-        List of dictionaries containing lead information
+    """Fetch all leads from Tesla Partner Portal.""""""
     """
     leads = []
     with sync_playwright() as p:

@@ -5,6 +5,14 @@ from flask_login import UserMixin
 
 db = SQLAlchemy()
 
+class ScraperAttempt(db.Model):
+    """Model to track scraper connection attempts to Tesla."""
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    success = db.Column(db.Boolean, default=False)
+    ip_address = db.Column(db.String(45))
+    error = db.Column(db.Text, nullable=True)
+
 class User(UserMixin, db.Model):
     """User model for authentication."""
     id = db.Column(db.Integer, primary_key=True)

@@ -8,7 +8,7 @@ from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer
 import requests
-from models import db, User, LoginAttempt, Lead
+from models import db, User, LoginAttempt, Lead, ScraperAttempt
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
 from app_factory import create_app
@@ -66,17 +66,17 @@ def send_validation_email(user):
 @login_required
 def dashboard():
     """Dashboard principal avec les 3 tableaux."""
-    successful_logins = LoginAttempt.query.filter_by(success=True)\
-        .order_by(LoginAttempt.timestamp.desc()).limit(10).all()
+    successful_scraper_logins = ScraperAttempt.query.filter_by(success=True)\
+        .order_by(ScraperAttempt.timestamp.desc()).limit(10).all()
         
-    failed_logins = LoginAttempt.query.filter_by(success=False)\
-        .order_by(LoginAttempt.timestamp.desc()).limit(10).all()
+    failed_scraper_logins = ScraperAttempt.query.filter_by(success=False)\
+        .order_by(ScraperAttempt.timestamp.desc()).limit(10).all()
         
     latest_leads = Lead.query.order_by(Lead.fetched_at.desc()).limit(10).all()
     
     return render_template('dashboard.html',
-                         successful_logins=successful_logins,
-                         failed_logins=failed_logins,
+                         successful_scraper_logins=successful_scraper_logins,
+                         failed_scraper_logins=failed_scraper_logins,
                          latest_leads=latest_leads)
 
 @app.route('/login', methods=['GET', 'POST'])
