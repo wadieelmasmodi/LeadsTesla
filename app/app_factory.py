@@ -32,11 +32,12 @@ def create_app():
     @app.route('/debug')
     def debug_info():
         """Return debug information."""
-        return {
+        from flask import jsonify
+        return jsonify({
             'hostname': socket.gethostname(),
             'environment': dict(os.environ),
             'working_directory': os.getcwd(),
             'database_url': app.config['SQLALCHEMY_DATABASE_URI']
-        }
+        })
         
     return app
