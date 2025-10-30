@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import bcrypt
 import socket
+import secrets
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer
@@ -124,9 +125,15 @@ def register():
             flash('Cet email est déjà utilisé')
             return redirect(url_for('register'))
             
-        # Vérification de la clé admin (temporaire)
-        if admin_key != os.getenv('ADMIN_KEY', 'tesla2025'):
-            flash('Clé admin invalide')
+        # Vérification de la clé admin
+        required_key = os.getenv('ADMIN_KEY')
+        if not required_key:
+            logger.error("ADMIN_KEY environment variable not set!")
+            flash('Inscription temporairement désactivée')
+            return redirect(url_for('register'))
+            
+        if not secrets.compare_digest(admin_key, required_key):
+            flash('Clé d\'inscription invalide')
             return redirect(url_for('register'))
 
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())

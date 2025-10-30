@@ -17,6 +17,8 @@ ENV FLASK_APP=web.py
 ENV FLASK_ENV=production
 ENV FLASK_DEBUG=0
 
+# Note: ADMIN_KEY should be set in Coolify environment variables
+
 # Expose web port
 EXPOSE 8000
 
