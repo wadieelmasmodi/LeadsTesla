@@ -4,4 +4,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app
 ENV PYTHONUNBUFFERED=1
-CMD ["python","main.py"]
+
+# Expose web port
+EXPOSE 8000
+
+# Start both the web server and the scraper
+CMD ["sh", "-c", "python web.py & python main.py"]

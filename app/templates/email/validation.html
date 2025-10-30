@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Nouvelle demande d'accès au dashboard Tesla Leads</h2>
+    <p>Bonjour,</p>
+    <p>Un nouvel utilisateur demande l'accès au dashboard :</p>
+    <p><strong>Email :</strong> {{ user.email }}</p>
+    <p><strong>Date de demande :</strong> {{ user.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    <p>Pour valider cet accès, cliquez sur le bouton ci-dessous :</p>
+    <p>
+        <a href="{{ validation_url }}" class="button">Valider l'accès</a>
+    </p>
+    <p>Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email.</p>
+    <p>Le lien expire dans 24 heures.</p>
+</body>
+</html>

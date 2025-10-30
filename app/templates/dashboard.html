@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Dashboard Tesla Leads</h2>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <h3>Derniers leads</h3>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Source</th>
+                        <th>Clé</th>
+                        <th>Date</th>
+                        <th>Détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lead in latest_leads %}
+                    <tr>
+                        <td>{{ lead.source }}</td>
+                        <td>{{ lead.key }}</td>
+                        <td>{{ lead.fetched_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info" data-bs-toggle="collapse" 
+                                    data-bs-target="#lead-{{ lead.id }}">
+                                Voir détails
+                            </button>
+                            <div class="collapse mt-2" id="lead-{{ lead.id }}">
+                                <pre class="bg-light p-2">{{ lead.data | tojson(indent=2) }}</pre>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <h3>Connexions réussies</h3>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Date</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for login in successful_logins %}
+                    <tr>
+                        <td>{{ login.email }}</td>
+                        <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ login.ip_address }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <h3>Tentatives échouées</h3>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Date</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for login in failed_logins %}
+                    <tr>
+                        <td>{{ login.email }}</td>
+                        <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ login.ip_address }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
