@@ -6,12 +6,13 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer
 import requests
+import socket
 from models import db, User, LoginAttempt, Lead
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
 
 # Configuration
-DOMAIN = "https://api2.energum.earth"
+DOMAIN = os.getenv('DOMAIN', 'https://api2.energum.earth')
 ADMIN_EMAIL = "contact@energum.earth"
 SECRET_KEY = os.getenv('FLASK_SECRET_KEY', os.urandom(24).hex())
 SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///app.db')
@@ -138,6 +139,25 @@ def register():
         return redirect(url_for('login'))
         
     return render_template('register.html')
+
+@app.route('/debug')
+def debug_info():
+    """Return debug information."""
+    return jsonify({
+        'hostname': socket.gethostname(),
+        'domain': DOMAIN,
+        'database_url': app.config['SQLALCHEMY_DATABASE_URI'],
+        'working_directory': os.getcwd(),
+        'environment': dict(os.environ)
+    })
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint."""
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat()
+    })
 
 @app.route('/validate/<token>')
 def validate_email(token):

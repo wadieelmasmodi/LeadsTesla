@@ -9,6 +9,9 @@ RUN mkdir -p /data && chown pwuser:pwuser /data && chmod 755 /data
 COPY . /app
 ENV PYTHONUNBUFFERED=1
 ENV DATABASE_URL=sqlite:////data/app.db
+ENV DOMAIN=https://api2.energum.earth
+ENV FLASK_RUN_HOST=0.0.0.0
+ENV FLASK_RUN_PORT=8000
 
 # Expose web port
 EXPOSE 8000
