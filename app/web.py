@@ -116,40 +116,61 @@ def login():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Page d'inscription."""
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        admin_key = request.form.get('admin_key')
-        
-        if User.query.filter_by(email=email).first():
-            flash('Cet email est déjà utilisé')
-            return redirect(url_for('register'))
+    try:
+        if request.method == 'POST':
+            email = request.form.get('email')
+            password = request.form.get('password')
+            admin_key = request.form.get('admin_key')
             
-        # Vérification de la clé admin
-        required_key = os.getenv('ADMIN_KEY')
-        if not required_key:
-            logger.error("ADMIN_KEY environment variable not set!")
-            flash('Inscription temporairement désactivée')
-            return redirect(url_for('register'))
+            logger.info(f"Tentative d'inscription pour: {email}")
             
-        if not secrets.compare_digest(admin_key, required_key):
-            flash('Clé d\'inscription invalide')
-            return redirect(url_for('register'))
+            if User.query.filter_by(email=email).first():
+                flash('Cet email est déjà utilisé')
+                return redirect(url_for('register'))
+                
+            # Vérification de la clé admin
+            required_key = os.getenv('ADMIN_KEY')
+            logger.info(f"État de la clé admin : {'configurée' if required_key else 'non configurée'}")
+            
+            if not required_key:
+                logger.error("ADMIN_KEY environment variable not set!")
+                flash('Inscription temporairement désactivée')
+                return redirect(url_for('register'))
+            
+            # Conversion en string pour éviter les problèmes de type
+            admin_key = str(admin_key or '')
+            required_key = str(required_key)
+            
+            if not secrets.compare_digest(admin_key, required_key):
+                logger.warning(f"Tentative d'inscription avec une clé invalide pour {email}")
+                flash('Clé d\'inscription invalide')
+                return redirect(url_for('register'))
 
-        password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-        user = User(
-            email=email,
-            password_hash=password_hash,
-            is_validated=True  # Auto-validation avec la bonne clé admin
-        )
+            password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+            user = User(
+                email=email,
+                password_hash=password_hash,
+                is_validated=True  # Auto-validation avec la bonne clé admin
+            )
+            
+            try:
+                db.session.add(user)
+                db.session.commit()
+                logger.info(f"Inscription réussie pour {email}")
+                flash('Inscription réussie. Vous pouvez maintenant vous connecter.')
+                return redirect(url_for('login'))
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Erreur lors de l'inscription de {email}: {str(e)}")
+                flash('Une erreur est survenue lors de l\'inscription. Veuillez réessayer.')
+                return redirect(url_for('register'))
+            
+        return render_template('register.html')
         
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('Inscription réussie. Vous pouvez maintenant vous connecter.')
-        return redirect(url_for('login'))
-        
-    return render_template('register.html')
+    except Exception as e:
+        logger.error(f"Erreur non gérée dans register: {str(e)}")
+        flash('Une erreur inattendue est survenue. Veuillez réessayer.')
+        return redirect(url_for('register'))
 
 
 
