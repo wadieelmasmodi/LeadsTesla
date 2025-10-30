@@ -232,6 +232,14 @@ def _ensure_db_dir(database_uri: str) -> None:
 
 def init_db_and_run():
     """Initialize DB and run the Flask app."""
+    logger.info("Starting application initialization...")
+    logger.info(f"Current working directory: {os.getcwd()}")
+    logger.info(f"Files in current directory: {os.listdir('.')}")
+    
+    # Log all environment variables
+    for key, value in os.environ.items():
+        logger.info(f"ENV: {key}={value}")
+    
     database_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
     logger.info(f"Starting database initialization with URI: {database_uri}")
     
@@ -272,8 +280,14 @@ def init_db_and_run():
             logger.error(f"DB dir: {dirpath}, exists={exists}, writable={writable}")
             logger.error("Continuing to run the web server, but DB operations may fail.")
     # Run the Flask app
-    app.run(host='0.0.0.0', port=8000)
+    port = int(os.getenv('PORT', 8000))
+    logger.info(f"Starting Flask server on port {port}")
+    app.run(host='0.0.0.0', port=port)
 
 
 if __name__ == '__main__':
-    init_db_and_run()
+    try:
+        init_db_and_run()
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
+        raise

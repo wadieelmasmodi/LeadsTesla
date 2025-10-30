@@ -7,11 +7,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /data && chown pwuser:pwuser /data && chmod 755 /data
 
 COPY . /app
+
+# Environment configuration
 ENV PYTHONUNBUFFERED=1
 ENV DATABASE_URL=sqlite:////data/app.db
 ENV DOMAIN=https://api2.energum.earth
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=8000
+ENV PORT=8000
+ENV FLASK_APP=web.py
+ENV FLASK_ENV=production
+ENV FLASK_DEBUG=0
 
 # Expose web port
 EXPOSE 8000
@@ -19,5 +23,9 @@ EXPOSE 8000
 # Set the correct user
 USER pwuser
 
-# Start both the web server and the scraper
-CMD ["sh", "-c", "python web.py & python main.py"]
+# Create a startup script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Start using the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"]
