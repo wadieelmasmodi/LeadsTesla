@@ -12,6 +12,7 @@ from config import PORTAL_URL, PAGE_TIMEOUT, TABLE_SOURCES
 from utils_text import normalize_key
 from auth import login_if_needed
 from models import db, ScraperAttempt
+from scraper_status import add_message, set_running
 
 def extract_headers(table) -> List[str]:
     """Extract and normalize table headers."""
@@ -70,6 +71,8 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
     """
     leads: List[Dict] = []
     logger.info("Scraper: starting new run")
+    add_message("Scraper: starting new run")
+    set_running(True)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
@@ -77,22 +80,29 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
 
         try:
             logger.info(f"Scraper: navigating to {PORTAL_URL}")
+            add_message("Navigating to portal")
             page.goto(PORTAL_URL, timeout=PAGE_TIMEOUT * 1000)
             logger.info("Scraper: page loaded, performing login if needed")
+            add_message("Page loaded; checking login")
             try:
                 login_if_needed(page)
                 logger.info("Scraper: login check complete")
+                add_message("Login check complete")
             except Exception as e:
                 logger.error(f"Scraper: login failed or raised: {e}")
+                add_message(f"Login failed: {e}")
                 raise
 
             logger.info("Scraper: waiting for leads tables to appear")
+            add_message("Waiting for leads tables to appear")
             page.wait_for_selector('table', timeout=PAGE_TIMEOUT * 1000)
 
             tables = page.query_selector_all('table')
             logger.info(f"Scraper: found {len(tables)} table(s) on the page")
+            add_message(f"Found {len(tables)} table(s) on the page")
             if not tables:
                 logger.warning("Scraper: no tables found — returning empty list")
+                add_message("No tables found — returning empty list")
                 return []
 
             for i, table in enumerate(tables):
@@ -105,6 +115,7 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                 logger.debug(f"Scraper: table {i} headers: {headers}")
                 rows = extract_rows(table, headers)
                 logger.info(f"Scraper: extracted {len(rows)} rows from table {i} (source={source})")
+                add_message(f"Extracted {len(rows)} rows from table {i} (source={source})")
 
                 for row_index, row in enumerate(rows):
                     lead = {
@@ -118,9 +129,11 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                     leads.append(lead)
 
             logger.info(f"Scraper: total leads extracted: {len(leads)}")
+            add_message(f"Total leads extracted: {len(leads)}")
 
         except Exception as e:
             logger.error(f"Scraper: unexpected error during fetch_leads: {e}")
+            add_message(f"Error during fetch: {e}")
             raise
         finally:
             try:
@@ -131,5 +144,7 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                 browser.close()
             except Exception:
                 pass
+            set_running(False)
+            add_message("Scraper: run finished")
 
     return leads

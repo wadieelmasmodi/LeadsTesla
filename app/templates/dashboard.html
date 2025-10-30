@@ -3,6 +3,14 @@
 {% block content %}
 <h2>Dashboard Tesla Leads</h2>
 
+<!-- Scraper progress panel -->
+<div class="mb-3">
+    <button class="btn btn-sm btn-outline-secondary" id="toggle-scrape-log" type="button">Afficher le journal du scraper</button>
+    <div id="scrape-progress" class="mt-2" style="display:none; max-height:240px; overflow:auto; background:#f8f9fa; border:1px solid #e9ecef; padding:8px;">
+        <ul id="scrape-messages" class="list-unstyled mb-0"></ul>
+    </div>
+</div>
+
 <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'leads' %}active{% endif %}" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button" role="tab">
@@ -201,4 +209,65 @@
         </div>
     </div>
 </div>
+    <script>
+        (function(){
+            const btn = document.getElementById('toggle-scrape-log');
+            const panel = document.getElementById('scrape-progress');
+            const list = document.getElementById('scrape-messages');
+            let polling = null;
+
+            function renderMessages(messages){
+                list.innerHTML = '';
+                messages.forEach(m => {
+                    const li = document.createElement('li');
+                    li.textContent = `${m.ts} — ${m.msg}`;
+                    list.appendChild(li);
+                });
+                // auto-scroll to bottom
+                panel.scrollTop = panel.scrollHeight;
+            }
+
+            async function fetchStatus(){
+                try{
+                    const res = await fetch('{{ url_for("scrape_status") }}');
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    renderMessages(data.messages || []);
+                    if (data.running){
+                        // ensure panel visible while running
+                        panel.style.display = '';
+                        btn.textContent = 'Masquer le journal du scraper';
+                    }
+                }catch(e){
+                    console.error('fetchStatus', e);
+                }
+            }
+
+            btn.addEventListener('click', function(){
+                if (panel.style.display === 'none'){
+                    panel.style.display = '';
+                    btn.textContent = 'Masquer le journal du scraper';
+                    // start polling
+                    if (!polling){
+                        fetchStatus();
+                        polling = setInterval(fetchStatus, 2000);
+                    }
+                } else {
+                    panel.style.display = 'none';
+                    btn.textContent = 'Afficher le journal du scraper';
+                    if (polling){ clearInterval(polling); polling = null; }
+                }
+            });
+
+            // If there is an active tab query param set to success/failed we auto-open the log
+            const urlParams = new URLSearchParams(window.location.search);
+            const tab = urlParams.get('tab');
+            if (tab === 'success' || tab === 'failed'){
+                // show and start polling
+                panel.style.display = '';
+                btn.textContent = 'Masquer le journal du scraper';
+                if (!polling){ fetchStatus(); polling = setInterval(fetchStatus, 2000); }
+            }
+        })();
+    </script>
 {% endblock %}
