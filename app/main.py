@@ -11,7 +11,8 @@ from readme import generate_readme
 from auth import AuthenticationError
 from config import README_FILE
 from models import db, Lead
-from web import app as web_app
+from app_factory import create_app
+web_app = create_app()
 
 def main() -> None:
     """Main execution flow."""

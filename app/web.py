@@ -2,30 +2,25 @@
 import os
 from datetime import datetime
 import bcrypt
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+import socket
+from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer
 import requests
-import socket
 from models import db, User, LoginAttempt, Lead
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
+from app_factory import create_app
 
 # Configuration
 DOMAIN = os.getenv('DOMAIN', 'https://api2.energum.earth')
 ADMIN_EMAIL = "contact@energum.earth"
-SECRET_KEY = os.getenv('FLASK_SECRET_KEY', os.urandom(24).hex())
-SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///app.db')
 
-app = Flask(__name__)
-app.config.update(
-    SECRET_KEY=SECRET_KEY,
-    SQLALCHEMY_DATABASE_URI=SQLALCHEMY_DATABASE_URI,
-    SQLALCHEMY_TRACK_MODIFICATIONS=False
-)
+# Create Flask application
+app = create_app()
+SECRET_KEY = app.config['SECRET_KEY']
 
 # Initialize extensions
-db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'

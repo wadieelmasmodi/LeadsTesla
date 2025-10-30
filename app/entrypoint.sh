@@ -1,23 +1,20 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+# Entrypoint that keeps the Flask web server in foreground so the container
+# stays alive. The scraper (one-shot) runs in background and its failures
+# won't mark the container as degraded.
 
 # Ensure data directory exists
 mkdir -p /data
 
-# Start Flask web server in background
-python web.py &
-WEB_PID=$!
-
-# Start the main scraper
-python main.py &
+echo "Starting scraper in background..."
+nohup python main.py > /data/scraper.log 2>&1 &
 SCRAPER_PID=$!
+echo "Scraper started (pid=$SCRAPER_PID). Logs: /data/scraper.log"
 
-# Trap SIGTERM and forward it to the processes
-trap "kill $WEB_PID $SCRAPER_PID" SIGTERM
-
-# Wait for either process to exit
-wait -n $WEB_PID $SCRAPER_PID
-
-# If we get here, one of the processes died, kill the other and exit with error
-kill $WEB_PID $SCRAPER_PID 2>/dev/null || true
-exit 1
+echo "Starting Flask web server in foreground..."
+# Run Flask in foreground (this will be the main container process)
+export FLASK_APP=web.py
+export PYTHONPATH=/app
+exec python -m flask run --host=0.0.0.0 --port=${PORT:-8000}
