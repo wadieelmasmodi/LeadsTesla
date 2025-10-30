@@ -187,12 +187,38 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat()
     })
 
-# Création des tables au démarrage
-with app.app_context():
-    db.create_all()
+def _ensure_db_dir(database_uri: str) -> None:
+    """Ensure the directory for the SQLite database exists.
 
-if __name__ == '__main__':
-    # Ensure the instance path exists
-    os.makedirs(os.path.dirname(SQLALCHEMY_DATABASE_URI.replace('sqlite:///', '')), exist_ok=True)
+    Accepts DATABASE_URL values like:
+      - sqlite:////absolute/path/to/db.db
+      - sqlite:///relative/path.db
+    """
+    db_path = None
+    if database_uri.startswith('sqlite:////'):
+        # absolute path: sqlite:////data/app.db -> /data/app.db
+        db_path = database_uri.replace('sqlite:////', '/')
+    elif database_uri.startswith('sqlite:///'):
+        # relative path: sqlite:///data/app.db -> data/app.db (relative to CWD)
+        db_path = database_uri.replace('sqlite:///', '')
+
+    if db_path:
+        dirpath = os.path.dirname(db_path)
+        if dirpath:
+            try:
+                os.makedirs(dirpath, exist_ok=True)
+            except Exception as e:
+                logger.error(f"Impossible de créer le répertoire de la DB {dirpath}: {e}")
+
+def init_db_and_run():
+    """Initialize DB and run the Flask app."""
+    database_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    _ensure_db_dir(database_uri)
+    with app.app_context():
+        db.create_all()
     # Run the Flask app
     app.run(host='0.0.0.0', port=8000)
+
+
+if __name__ == '__main__':
+    init_db_and_run()

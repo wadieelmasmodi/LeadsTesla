@@ -20,7 +20,7 @@ RUN mkdir -p /data && chmod 777 /data
 # Environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=web.py
-ENV DATABASE_URL=sqlite:///data/app.db
+ENV DATABASE_URL=sqlite:////data/app.db
 
 # Expose web port
 EXPOSE 8000
