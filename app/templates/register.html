@@ -9,13 +9,14 @@
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control" id="email" name="email" required>
             </div>
-            <div class="mb-3">
+            <div class="mb-3 form-group-password">
                 <label for="password" class="form-label">Mot de passe</label>
                 <input type="password" class="form-control" id="password" name="password" required>
+                <i class="bi bi-eye password-toggle" data-toggle="password" onclick="togglePassword('password')"></i>
             </div>
             <div class="mb-3">
                 <label for="admin_key" class="form-label">Clé d'inscription</label>
-                <input type="password" class="form-control" id="admin_key" name="admin_key" required>
+                <input type="text" class="form-control" id="admin_key" name="admin_key" required autocomplete="off">
                 <div class="form-text">Clé requise pour l'inscription</div>
             </div>
             <button type="submit" class="btn btn-primary w-100">S'inscrire</button>
