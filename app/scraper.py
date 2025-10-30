@@ -57,67 +57,79 @@ def log_scraper_attempt(success: bool, error: str = None):
     db.session.add(attempt)
     db.session.commit()
 
-def log_scraper_attempt(success: bool, error: str = None):
-    """Log a scraper connection attempt."""
-    attempt = ScraperAttempt(
-        success=success,
-        ip_address=socket.gethostbyname(socket.gethostname()),
-        error=error
-    )
-    db.session.add(attempt)
-    db.session.commit()
-
 def random_delay():
     """Wait for a random time between 5 and 20 minutes."""
     delay = random.randint(5 * 60, 20 * 60)  # Convert to seconds
     time.sleep(delay)
 
 def fetch_leads(logger: logging.Logger) -> List[Dict]:
-    """Fetch all leads from Tesla Partner Portal.""""""
+    """Fetch all leads from Tesla Partner Portal.
+
+    Logs progress at key steps so callers can follow what happened.
+    Raises exceptions on critical failures so callers can record attempt status.
     """
-    leads = []
+    leads: List[Dict] = []
+    logger.info("Scraper: starting new run")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
         page = context.new_page()
-        
+
         try:
-            # Navigate to portal and login
+            logger.info(f"Scraper: navigating to {PORTAL_URL}")
             page.goto(PORTAL_URL, timeout=PAGE_TIMEOUT * 1000)
-            login_if_needed(page)
-            
-            # Wait for tables to load
+            logger.info("Scraper: page loaded, performing login if needed")
+            try:
+                login_if_needed(page)
+                logger.info("Scraper: login check complete")
+            except Exception as e:
+                logger.error(f"Scraper: login failed or raised: {e}")
+                raise
+
+            logger.info("Scraper: waiting for leads tables to appear")
             page.wait_for_selector('table', timeout=PAGE_TIMEOUT * 1000)
-            
-            # Get all tables
+
             tables = page.query_selector_all('table')
+            logger.info(f"Scraper: found {len(tables)} table(s) on the page")
             if not tables:
-                logger.warning("Aucun tableau trouvé (0 lead)")
+                logger.warning("Scraper: no tables found — returning empty list")
                 return []
-                
-            # Process each table
+
             for i, table in enumerate(tables):
                 if i >= len(TABLE_SOURCES):
+                    logger.debug(f"Scraper: skipping table index {i} beyond configured sources")
                     break
-                    
+
                 source = TABLE_SOURCES[i]
                 headers = extract_headers(table)
+                logger.debug(f"Scraper: table {i} headers: {headers}")
                 rows = extract_rows(table, headers)
-                
-                # Create lead objects
+                logger.info(f"Scraper: extracted {len(rows)} rows from table {i} (source={source})")
+
                 for row_index, row in enumerate(rows):
                     lead = {
                         "source": source,
                         "key": guess_primary_key(row),
-                        "fetched_at": datetime.now().isoformat(),
+                        "fetched_at": datetime.now(),
                         "url": PORTAL_URL,
                         "row_index": row_index,
                         "row": row
                     }
                     leads.append(lead)
-                    
+
+            logger.info(f"Scraper: total leads extracted: {len(leads)}")
+
+        except Exception as e:
+            logger.error(f"Scraper: unexpected error during fetch_leads: {e}")
+            raise
         finally:
-            context.close()
-            browser.close()
-            
+            try:
+                context.close()
+            except Exception:
+                pass
+            try:
+                browser.close()
+            except Exception:
+                pass
+
     return leads
