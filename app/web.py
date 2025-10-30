@@ -215,7 +215,28 @@ def init_db_and_run():
     database_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
     _ensure_db_dir(database_uri)
     with app.app_context():
-        db.create_all()
+        try:
+            logger.info(f"Initializing database at {database_uri}")
+            db.create_all()
+        except Exception as e:
+            # Log detailed diagnostics to help debugging permission/path issues
+            try:
+                db_path = None
+                if database_uri and database_uri.startswith('sqlite:'):
+                    if database_uri.startswith('sqlite:////'):
+                        db_path = database_uri.replace('sqlite:////', '/')
+                    elif database_uri.startswith('sqlite:///'):
+                        db_path = database_uri.replace('sqlite:///', '')
+                dirpath = os.path.dirname(db_path) if db_path else None
+                exists = os.path.exists(dirpath) if dirpath else False
+                writable = os.access(dirpath, os.W_OK) if dirpath else False
+            except Exception:
+                exists = False
+                writable = False
+
+            logger.error(f"Failed to create DB ({database_uri}): {e}")
+            logger.error(f"DB dir: {dirpath}, exists={exists}, writable={writable}")
+            logger.error("Continuing to run the web server, but DB operations may fail.")
     # Run the Flask app
     app.run(host='0.0.0.0', port=8000)
 
