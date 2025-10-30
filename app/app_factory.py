@@ -19,6 +19,10 @@ def create_app():
     # Initialize extensions
     db.init_app(app)
     
+    # Create database tables
+    with app.app_context():
+        db.create_all()
+    
     # Health check endpoint
     @app.route('/health')
     def health_check():
