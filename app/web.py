@@ -19,11 +19,15 @@ ADMIN_EMAIL = "contact@energum.earth"
 # Create Flask application
 app = create_app()
 SECRET_KEY = app.config['SECRET_KEY']
+logger = get_logger(__name__)
 
 # Initialize extensions
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Initialize serializer for email tokens
+serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 logger = get_logger(__name__)
 serializer = URLSafeTimedSerializer(SECRET_KEY)
@@ -135,24 +139,7 @@ def register():
         
     return render_template('register.html')
 
-@app.route('/debug')
-def debug_info():
-    """Return debug information."""
-    return jsonify({
-        'hostname': socket.gethostname(),
-        'domain': DOMAIN,
-        'database_url': app.config['SQLALCHEMY_DATABASE_URI'],
-        'working_directory': os.getcwd(),
-        'environment': dict(os.environ)
-    })
 
-@app.route('/health')
-def health_check():
-    """Health check endpoint."""
-    return jsonify({
-        'status': 'ok',
-        'timestamp': datetime.now().isoformat()
-    })
 
 @app.route('/validate/<token>')
 def validate_email(token):
