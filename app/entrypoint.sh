@@ -5,7 +5,8 @@ set -euo pipefail
 mkdir -p /data
 
 echo "Starting web server in background..."
-gunicorn web:app --bind 0.0.0.0:${PORT:-8000} --log-level info &
+export PYTHONPATH=/app
+gunicorn --access-logfile - --error-logfile - web:app --bind 0.0.0.0:${PORT:-8000} --workers 1 --threads 2 --timeout 120 --log-level debug &
 WEB_PID=$!
 echo "Web server started (pid=$WEB_PID)"
 

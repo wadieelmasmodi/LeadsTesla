@@ -181,13 +181,7 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/health')
-def health_check():
-    """Health check endpoint for Coolify."""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat()
-    })
+
 
 def _ensure_db_dir(database_uri: str) -> None:
     """Ensure the directory for the SQLite database exists.
