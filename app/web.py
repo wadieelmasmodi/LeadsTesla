@@ -179,6 +179,20 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Coolify."""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
 # Création des tables au démarrage
 with app.app_context():
     db.create_all()
+
+if __name__ == '__main__':
+    # Ensure the instance path exists
+    os.makedirs(os.path.dirname(SQLALCHEMY_DATABASE_URI.replace('sqlite:///', '')), exist_ok=True)
+    # Run the Flask app
+    app.run(host='0.0.0.0', port=8000)
