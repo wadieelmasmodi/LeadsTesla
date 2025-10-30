@@ -9,6 +9,9 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from itsdangerous import URLSafeTimedSerializer
 import requests
 from models import db, User, LoginAttempt, Lead, ScraperAttempt
+import threading
+from scraper import fetch_leads
+from config import PORTAL_URL
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
 from app_factory import create_app
@@ -65,19 +68,59 @@ def send_validation_email(user):
 @app.route('/')
 @login_required
 def dashboard():
-    """Dashboard principal avec les 3 tableaux."""
+    """Dashboard principal avec les 3 tableaux et pagination."""
+    # Determine pages from query params
+    try:
+        leads_page = int(request.args.get('leads_page', 1))
+    except ValueError:
+        leads_page = 1
+
+    try:
+        success_page = int(request.args.get('success_page', 1))
+    except ValueError:
+        success_page = 1
+
+    try:
+        failed_page = int(request.args.get('failed_page', 1))
+    except ValueError:
+        failed_page = 1
+
+    # Which tab should be active
+    active_tab = request.args.get('tab', 'leads')
+
+    latest_leads = Lead.query.order_by(Lead.fetched_at.desc()).paginate(page=leads_page, per_page=10, error_out=False)
+
     successful_scraper_logins = ScraperAttempt.query.filter_by(success=True)\
-        .order_by(ScraperAttempt.timestamp.desc()).limit(10).all()
-        
+        .order_by(ScraperAttempt.timestamp.desc()).paginate(page=success_page, per_page=10, error_out=False)
+
     failed_scraper_logins = ScraperAttempt.query.filter_by(success=False)\
-        .order_by(ScraperAttempt.timestamp.desc()).limit(10).all()
-        
-    latest_leads = Lead.query.order_by(Lead.fetched_at.desc()).limit(10).all()
-    
+        .order_by(ScraperAttempt.timestamp.desc()).paginate(page=failed_page, per_page=10, error_out=False)
+
     return render_template('dashboard.html',
+                         latest_leads=latest_leads,
                          successful_scraper_logins=successful_scraper_logins,
                          failed_scraper_logins=failed_scraper_logins,
-                         latest_leads=latest_leads)
+                         active_tab=active_tab,
+                         portal_url=PORTAL_URL)
+
+
+@app.route('/scrape-now', methods=['POST'])
+@login_required
+def scrape_now():
+    """Trigger a scraping run in background and return immediately."""
+    def _background():
+        with app.app_context():
+            try:
+                fetch_leads(logger)
+            except Exception as e:
+                logger.error(f"Background scrape failed: {e}")
+
+    thread = threading.Thread(target=_background, daemon=True)
+    thread.start()
+    flash('Scrape lancé en tâche de fond — vérifiez les logs ou le tableau pour les résultats.', 'info')
+    # keep the user on the same tab if provided
+    tab = request.args.get('tab', 'leads')
+    return redirect(url_for('dashboard', tab=tab))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

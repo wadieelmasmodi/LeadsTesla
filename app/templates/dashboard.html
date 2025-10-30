@@ -5,104 +5,199 @@
 
 <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button" role="tab">
-            Derniers leads
+        <button class="nav-link {% if active_tab == 'leads' %}active{% endif %}" id="leads-tab" data-bs-toggle="tab" data-bs-target="#leads" type="button" role="tab">
+            Leads Tesla
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="success-tab" data-bs-toggle="tab" data-bs-target="#success" type="button" role="tab">
+        <button class="nav-link {% if active_tab == 'success' %}active{% endif %}" id="success-tab" data-bs-toggle="tab" data-bs-target="#success" type="button" role="tab">
             Connexions Tesla réussies
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="failed-tab" data-bs-toggle="tab" data-bs-target="#failed" type="button" role="tab">
+        <button class="nav-link {% if active_tab == 'failed' %}active{% endif %}" id="failed-tab" data-bs-toggle="tab" data-bs-target="#failed" type="button" role="tab">
             Connexions Tesla échouées
         </button>
     </li>
 </ul>
 
 <div class="tab-content" id="dashboardTabsContent">
-    <div class="tab-pane fade show active" id="leads" role="tabpanel">
+    <!-- Leads Tesla tab -->
+    <div class="tab-pane fade {% if active_tab == 'leads' %}show active{% endif %}" id="leads" role="tabpanel">
         <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div></div>
+                <div>
+                    <a class="btn btn-primary" href="{{ portal_url }}" target="_blank">Tesla Partner Portal</a>
+                </div>
+            </div>
             <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Source</th>
-                        <th>Clé</th>
-                        <th>Date</th>
-                        <th>Détails</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for lead in latest_leads %}
-                    <tr>
-                        <td>{{ lead.source }}</td>
-                        <td>{{ lead.key }}</td>
-                        <td>{{ lead.fetched_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>
-                            <button class="btn btn-sm btn-info" data-bs-toggle="collapse" 
-                                    data-bs-target="#lead-{{ lead.id }}">
-                                Voir détails
-                            </button>
-                            <div class="collapse mt-2" id="lead-{{ lead.id }}">
-                                <pre class="bg-light p-2">{{ lead.data | tojson(indent=2) }}</pre>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Clé</th>
+                            <th>Date</th>
+                            <th>Détails</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in latest_leads.items %}
+                        <tr>
+                            <td>{{ lead.source }}</td>
+                            <td>{{ lead.key }}</td>
+                            <td>{{ lead.fetched_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-info" data-bs-toggle="collapse" 
+                                        data-bs-target="#lead-{{ lead.id }}">
+                                    Voir détails
+                                </button>
+                                <div class="collapse mt-2" id="lead-{{ lead.id }}">
+                                    <pre class="bg-light p-2">{{ lead.data | tojson(indent=2) }}</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
 
-<div class="row mt-4">
-    <div class="col-md-6">
-        <h3>Connexions réussies</h3>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Date</th>
-                        <th>IP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for login in successful_logins %}
-                    <tr>
-                        <td>{{ login.email }}</td>
-                        <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>{{ login.ip_address }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                <!-- Pagination for leads -->
+                <nav aria-label="Leads pagination">
+                    <ul class="pagination">
+                        {% if latest_leads.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', leads_page=latest_leads.prev_num, tab='leads') }}">&laquo; Précédent</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
+                        {% endif %}
+
+                        <li class="page-item disabled"><span class="page-link">Page {{ latest_leads.page }} / {{ latest_leads.pages }}</span></li>
+
+                        {% if latest_leads.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', leads_page=latest_leads.next_num, tab='leads') }}">Suivant &raquo;</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 
-    <div class="col-md-6">
-        <h3>Tentatives échouées</h3>
-        <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Date</th>
-                        <th>IP</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for login in failed_logins %}
-                    <tr>
-                        <td>{{ login.email }}</td>
-                        <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>{{ login.ip_address }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Connexions Tesla réussies tab -->
+    <div class="tab-pane fade {% if active_tab == 'success' %}show active{% endif %}" id="success" role="tabpanel">
+        <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div></div>
+                <div>
+                    <form method="post" action="{{ url_for('scrape_now', tab='success') }}">
+                        <button type="submit" class="btn btn-warning">Scrape Tesla Leads now</button>
+                    </form>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for login in successful_scraper_logins.items %}
+                        <tr>
+                            <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ login.ip_address }}</td>
+                            <td><span class="badge bg-success">Réussi</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination for successful connections -->
+                <nav aria-label="Success pagination">
+                    <ul class="pagination">
+                        {% if successful_scraper_logins.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', success_page=successful_scraper_logins.prev_num, tab='success') }}">&laquo; Précédent</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
+                        {% endif %}
+
+                        <li class="page-item disabled"><span class="page-link">Page {{ successful_scraper_logins.page }} / {{ successful_scraper_logins.pages }}</span></li>
+
+                        {% if successful_scraper_logins.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', success_page=successful_scraper_logins.next_num, tab='success') }}">Suivant &raquo;</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connexions Tesla échouées tab -->
+    <div class="tab-pane fade {% if active_tab == 'failed' %}show active{% endif %}" id="failed" role="tabpanel">
+        <div class="mt-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div></div>
+                <div>
+                    <form method="post" action="{{ url_for('scrape_now', tab='failed') }}">
+                        <button type="submit" class="btn btn-warning">Scrape Tesla Leads now</button>
+                    </form>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for login in failed_scraper_logins.items %}
+                        <tr>
+                            <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ login.ip_address }}</td>
+                            <td><span class="badge bg-danger">Échec</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination for failed connections -->
+                <nav aria-label="Failed pagination">
+                    <ul class="pagination">
+                        {% if failed_scraper_logins.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', failed_page=failed_scraper_logins.prev_num, tab='failed') }}">&laquo; Précédent</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
+                        {% endif %}
+
+                        <li class="page-item disabled"><span class="page-link">Page {{ failed_scraper_logins.page }} / {{ failed_scraper_logins.pages }}</span></li>
+
+                        {% if failed_scraper_logins.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('dashboard', failed_page=failed_scraper_logins.next_num, tab='failed') }}">Suivant &raquo;</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
         </div>
     </div>
 </div>
