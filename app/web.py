@@ -118,23 +118,28 @@ def register():
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
+        admin_key = request.form.get('admin_key')
         
         if User.query.filter_by(email=email).first():
             flash('Cet email est déjà utilisé')
             return redirect(url_for('register'))
             
+        # Vérification de la clé admin (temporaire)
+        if admin_key != os.getenv('ADMIN_KEY', 'tesla2025'):
+            flash('Clé admin invalide')
+            return redirect(url_for('register'))
+
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
         user = User(
             email=email,
             password_hash=password_hash,
-            validation_token=os.urandom(32).hex()
+            is_validated=True  # Auto-validation avec la bonne clé admin
         )
         
         db.session.add(user)
         db.session.commit()
         
-        send_validation_email(user)
-        flash('Inscription réussie. Attendez la validation par email.')
+        flash('Inscription réussie. Vous pouvez maintenant vous connecter.')
         return redirect(url_for('login'))
         
     return render_template('register.html')
