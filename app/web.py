@@ -213,12 +213,26 @@ def _ensure_db_dir(database_uri: str) -> None:
 def init_db_and_run():
     """Initialize DB and run the Flask app."""
     database_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    logger.info(f"Starting database initialization with URI: {database_uri}")
+    
     _ensure_db_dir(database_uri)
     with app.app_context():
         try:
             logger.info(f"Initializing database at {database_uri}")
+            # Try to check directory permissions
+            if database_uri.startswith('sqlite:////'):
+                db_path = database_uri.replace('sqlite:////', '/')
+                dir_path = os.path.dirname(db_path)
+                logger.info(f"Checking permissions for directory: {dir_path}")
+                logger.info(f"Directory exists: {os.path.exists(dir_path)}")
+                if os.path.exists(dir_path):
+                    logger.info(f"Directory permissions: {oct(os.stat(dir_path).st_mode)[-3:]}")
+                    logger.info(f"Directory owner: {os.stat(dir_path).st_uid}")
+                    
             db.create_all()
+            logger.info("Database initialization successful")
         except Exception as e:
+            logger.error(f"Database initialization failed: {str(e)}")
             # Log detailed diagnostics to help debugging permission/path issues
             try:
                 db_path = None
