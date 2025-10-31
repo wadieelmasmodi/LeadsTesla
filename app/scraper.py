@@ -95,19 +95,59 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
 
             logger.info("Scraper: waiting for page load to complete")
             add_message("Waiting for page load to complete")
+            
+            # Attendre que la page soit complètement chargée
             page.wait_for_load_state('networkidle', timeout=PAGE_TIMEOUT * 1000)
             
-            logger.info("Scraper: waiting for leads tables to appear")
-            add_message("Waiting for leads tables to appear")
-            
-            # Wait for any loading indicators to disappear
+            # Attendre que l'application Angular soit chargée (le loader disparaît)
+            logger.info("Scraper: waiting for Angular app to initialize")
+            add_message("Waiting for Angular app to initialize")
             try:
-                page.wait_for_selector('.tds-loader', timeout=5000, state='hidden')
-            except:
-                logger.info("No loading indicator found or already hidden")
-                
-            # Then wait for table with more robust selector
-            page.wait_for_selector('table[class*="table"], .tds-table, div table', timeout=PAGE_TIMEOUT * 1000)
+                page.wait_for_selector('app-root:not(:empty)', timeout=PAGE_TIMEOUT * 1000)
+            except Exception as e:
+                logger.warning(f"Could not detect Angular app initialization: {e}")
+            
+            # Attendre la disparition du loader global
+            logger.info("Scraper: waiting for main loader to disappear")
+            add_message("Waiting for loader to disappear")
+            try:
+                page.wait_for_selector('.tds-loader--show', timeout=PAGE_TIMEOUT * 1000, state='hidden')
+            except Exception as e:
+                logger.warning(f"Could not detect loader disappearance: {e}")
+            
+            # Vérifier la présence du contenu
+            logger.info("Scraper: waiting for content to be ready")
+            add_message("Waiting for content to be ready")
+            
+            # Attendre soit la table, soit un message d'erreur, soit un état vide
+            selectors = [
+                'table[class*="table"]', 
+                '.tds-table',
+                'mat-table',
+                '.no-results',
+                '.empty-state',
+                '#main-content table'
+            ]
+            
+            try:
+                for selector in selectors:
+                    logger.info(f"Trying selector: {selector}")
+                    if page.query_selector(selector):
+                        logger.info(f"Found matching element with selector: {selector}")
+                        return
+                    
+                # Si aucun sélecteur n'a fonctionné, attendre le premier qui apparaît
+                logger.info("Waiting for any content to appear")
+                page.wait_for_selector(' ,'.join(selectors), timeout=PAGE_TIMEOUT * 1000)
+            except Exception as e:
+                # Prendre une capture d'écran pour le debug
+                try:
+                    page.screenshot(path="debug_screenshot.png")
+                    logger.info("Saved debug screenshot")
+                except:
+                    pass
+                # Remonter l'erreur
+                raise
 
             tables = page.query_selector_all('table')
             logger.info(f"Scraper: found {len(tables)} table(s) on the page")
