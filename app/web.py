@@ -7,6 +7,7 @@ import secrets
 from flask import render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from itsdangerous import URLSafeTimedSerializer
+from flask_cors import CORS
 import requests
 from models import db, User, LoginAttempt, Lead, ScraperAttempt
 import threading
@@ -15,6 +16,14 @@ from config import PORTAL_URL
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
 from app_factory import create_app
+from scraper_status import get_messages, is_running
+# Optional: support Redis + RQ if REDIS_URL is provided in environment
+try:
+    from redis import Redis
+    from rq import Queue
+    REDIS_AVAILABLE = True
+except Exception:
+    REDIS_AVAILABLE = False
 
 # Configuration
 DOMAIN = os.getenv('DOMAIN', 'https://api2.energum.earth')
@@ -22,6 +31,7 @@ ADMIN_EMAIL = "contact@energum.earth"
 
 # Create Flask application
 app = create_app()
+CORS(app)
 SECRET_KEY = app.config['SECRET_KEY']
 logger = get_logger(__name__)
 
@@ -107,20 +117,52 @@ def dashboard():
 @app.route('/scrape-now', methods=['POST'])
 @login_required
 def scrape_now():
-    """Trigger a scraping run in background and return immediately."""
-    def _background():
-        with app.app_context():
-            try:
-                fetch_leads(logger)
-            except Exception as e:
-                logger.error(f"Background scrape failed: {e}")
+    """Trigger a scraping run in background and return immediately.
 
-    thread = threading.Thread(target=_background, daemon=True)
-    thread.start()
-    flash('Scrape lancé en tâche de fond — vérifiez les logs ou le tableau pour les résultats.', 'info')
+    If REDIS_URL is configured and RQ is available, enqueue the task into RQ.
+    Otherwise, fall back to a local background thread.
+    """
+    redis_url = os.getenv('REDIS_URL')
+    if redis_url and REDIS_AVAILABLE:
+        try:
+            conn = Redis.from_url(redis_url)
+            q = Queue(connection=conn)
+            q.enqueue('app.tasks.run_fetch_task')
+            flash("Scrape en file d'attente (Redis/RQ).", 'info')
+        except Exception as e:
+            logger.error(f"Failed to enqueue job to RQ: {e}")
+            flash("Impossible d'enregistrer le job RQ — exécution locale.", 'warning')
+            def _background():
+                with app.app_context():
+                    try:
+                        fetch_leads(logger)
+                    except Exception as e:
+                        logger.error(f"Background scrape failed: {e}")
+
+            thread = threading.Thread(target=_background, daemon=True)
+            thread.start()
+    else:
+        def _background():
+            with app.app_context():
+                try:
+                    fetch_leads(logger)
+                except Exception as e:
+                    logger.error(f"Background scrape failed: {e}")
+
+        thread = threading.Thread(target=_background, daemon=True)
+        thread.start()
+        flash('Scrape lancé en tâche de fond — vérifiez les logs ou le tableau pour les résultats.', 'info')
+
     # keep the user on the same tab if provided
     tab = request.args.get('tab', 'leads')
     return redirect(url_for('dashboard', tab=tab))
+
+
+@app.route('/scrape-status')
+@login_required
+def scrape_status():
+    """Return recent scraper progress messages and running flag as JSON."""
+    return jsonify({'running': is_running(), 'messages': get_messages()})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():

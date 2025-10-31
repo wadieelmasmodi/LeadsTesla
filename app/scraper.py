@@ -93,9 +93,21 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                 add_message(f"Login failed: {e}")
                 raise
 
+            logger.info("Scraper: waiting for page load to complete")
+            add_message("Waiting for page load to complete")
+            page.wait_for_load_state('networkidle', timeout=PAGE_TIMEOUT * 1000)
+            
             logger.info("Scraper: waiting for leads tables to appear")
             add_message("Waiting for leads tables to appear")
-            page.wait_for_selector('table', timeout=PAGE_TIMEOUT * 1000)
+            
+            # Wait for any loading indicators to disappear
+            try:
+                page.wait_for_selector('.tds-loader', timeout=5000, state='hidden')
+            except:
+                logger.info("No loading indicator found or already hidden")
+                
+            # Then wait for table with more robust selector
+            page.wait_for_selector('table[class*="table"], .tds-table, div table', timeout=PAGE_TIMEOUT * 1000)
 
             tables = page.query_selector_all('table')
             logger.info(f"Scraper: found {len(tables)} table(s) on the page")
