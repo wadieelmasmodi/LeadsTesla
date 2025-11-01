@@ -100,17 +100,69 @@ def scrape_tesla_leads() -> Dict:
             # Load and inject cookies
             cookies = load_cookies()
             if cookies:
-                logger.info(f"� Injection de {len(cookies)} cookies...")
-                for cookie in cookies:
-                    try:
-                        # Remove problematic keys
-                        cookie_clean = {k: v for k, v in cookie.items() if k not in ['sameSite', 'expiry'] and v is not None}
-                        driver.add_cookie(cookie_clean)
-                    except Exception as e:
-                        logger.warning(f"⚠️ Cookie non injecté: {e}")
+                logger.info(f"📦 {len(cookies)} cookies chargés depuis le fichier")
                 
-                logger.info("✅ Cookies injectés")
-                run.phase_connexion = "Cookies injectés - navigation"
+                # Group cookies by domain
+                cookies_by_domain = {}
+                for cookie in cookies:
+                    domain = cookie.get('domain', '')
+                    if domain not in cookies_by_domain:
+                        cookies_by_domain[domain] = []
+                    cookies_by_domain[domain].append(cookie)
+                
+                logger.info(f"🌐 Domaines trouvés: {list(cookies_by_domain.keys())}")
+                
+                # Inject cookies for each domain
+                injected_count = 0
+                failed_count = 0
+                
+                for domain, domain_cookies in cookies_by_domain.items():
+                    # Determine the URL to navigate to for this domain
+                    if 'tesla.com' in domain:
+                        # Navigate to the appropriate Tesla domain
+                        if domain.startswith('.'):
+                            domain_clean = domain[1:]  # Remove leading dot
+                        else:
+                            domain_clean = domain
+                        
+                        # Use https for navigation
+                        nav_url = f"https://{domain_clean}"
+                        logger.info(f"🔗 Navigation vers {nav_url} pour injecter {len(domain_cookies)} cookies...")
+                        
+                        try:
+                            driver.get(nav_url)
+                            time.sleep(2)
+                            
+                            # Inject cookies for this domain
+                            for cookie in domain_cookies:
+                                try:
+                                    # Clean cookie: keep only essential fields
+                                    cookie_clean = {
+                                        'name': cookie['name'],
+                                        'value': cookie['value'],
+                                        'domain': cookie.get('domain', domain_clean),
+                                        'path': cookie.get('path', '/'),
+                                        'secure': cookie.get('secure', True),
+                                        'httpOnly': cookie.get('httpOnly', False)
+                                    }
+                                    
+                                    # Remove None values
+                                    cookie_clean = {k: v for k, v in cookie_clean.items() if v is not None}
+                                    
+                                    driver.add_cookie(cookie_clean)
+                                    injected_count += 1
+                                    logger.debug(f"   ✅ Cookie '{cookie['name']}' injecté")
+                                    
+                                except Exception as e:
+                                    failed_count += 1
+                                    logger.warning(f"   ⚠️ Échec injection cookie '{cookie.get('name', '?')}': {str(e)[:100]}")
+                        
+                        except Exception as e:
+                            logger.error(f"❌ Erreur navigation vers {nav_url}: {e}")
+                            failed_count += len(domain_cookies)
+                
+                logger.info(f"📊 Résultat injection: {injected_count} réussis, {failed_count} échoués")
+                run.phase_connexion = f"Cookies: {injected_count} injectés"
                 db.session.commit()
             
             # Now navigate to portal with cookies
