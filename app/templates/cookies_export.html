@@ -57,8 +57,8 @@
         <div class="step">
             <h2><span class="step-num">3</span> Copier les cookies</h2>
             <p>Une fois connecté, exécutez cette commande dans la console (appuyez sur <code>F12</code> → onglet <code>Console</code>):</p>
-            <div class="code">copy(JSON.stringify(document.cookie.split('; ').map(c => {const [n,v] = c.split('='); return {name: n, value: decodeURIComponent(v), domain: 'auth.tesla.com', path: '/'}}), null, 2))</div>
-            <p style="color: #999; font-size: 13px;"><em>Collez, appuyez sur Entrée. Les cookies seront copiés automatiquement.</em></p>
+            <div class="code">copy(JSON.stringify(document.cookie.split('; ').map(c => {const [n,v] = c.split('='); return {name: n, value: decodeURIComponent(v), domain: window.location.hostname, path: '/'}}), null, 2))</div>
+            <p style="color: #999; font-size: 13px;"><em>Collez, appuyez sur Entrée. Les cookies seront copiés automatiquement avec le bon domaine.</em></p>
         </div>
 
         <div class="step">
@@ -92,6 +92,13 @@
                     throw new Error('Le tableau de cookies est vide');
                 }
 
+                // Add domain if missing (cookies from console might not have it)
+                cookies = cookies.map(c => ({
+                    ...c,
+                    domain: c.domain || 'auth.tesla.com',
+                    path: c.path || '/'
+                }));
+
                 const hasTeslaDomains = cookies.some(c => 
                     c.domain && c.domain.toLowerCase().includes('tesla.com')
                 );
@@ -106,7 +113,7 @@
                 fetch('/upload-cookies', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: input
+                    body: JSON.stringify(cookies)
                 })
                 .then(r => r.json())
                 .then(data => {
