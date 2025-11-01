@@ -2,7 +2,16 @@ import os
 import logging
 from logger import get_logger
 from app_factory import create_app
-from scraper_selenium import scrape_tesla_leads
+
+# Try to import scraper
+try:
+    from scraper_selenium import scrape_tesla_leads
+    SCRAPER_AVAILABLE = True
+except Exception as e:
+    SCRAPER_AVAILABLE = False
+    print(f"⚠️ Scraper import failed in tasks.py: {e}")
+    def scrape_tesla_leads():
+        return {'status': 'failed', 'message': 'Scraper not available', 'leads_count': 0, 'leads': []}
 
 logger = get_logger(__name__)
 

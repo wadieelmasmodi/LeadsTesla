@@ -11,9 +11,21 @@ from flask_cors import CORS
 import requests
 from models import db, User, LoginAttempt, Lead, ScraperAttempt, ScraperRun
 import threading
-from scraper_selenium import scrape_tesla_leads
 from config import PORTAL_URL
 from logger import get_logger
+
+# Try to import scraper - log error if it fails
+try:
+    from scraper_selenium import scrape_tesla_leads
+    SCRAPER_AVAILABLE = True
+    print("✅ Scraper Selenium imported successfully")
+except Exception as e:
+    SCRAPER_AVAILABLE = False
+    print(f"⚠️ Scraper import failed: {e}")
+    print("Le scraper ne sera pas disponible")
+    # Define a dummy function
+    def scrape_tesla_leads():
+        return {'status': 'failed', 'message': 'Scraper not available - Selenium not installed', 'leads_count': 0, 'leads': []}
 from config import N8N_WEBHOOK_URL
 from app_factory import create_app
 from scraper_status import get_messages, is_running
