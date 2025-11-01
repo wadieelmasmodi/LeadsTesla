@@ -170,129 +170,20 @@ def scrape_tesla_leads() -> Dict:
             driver.save_screenshot(login_screenshot_path)
             logger.info(f"📸 Screenshot de la page de login: {login_screenshot}")
             
-            # STEP 1: Enter email
-            logger.info("📧 Étape 1: Recherche du champ email...")
-            logger.info("⏳ Attente de 5 secondes supplémentaires pour le formulaire...")
+            # STEP 1: Enter email with identity field
+            logger.info("📧 Étape 1: Recherche du champ identity...")
+            logger.info("⏳ Attente de 5 secondes pour le formulaire...")
             time.sleep(5)
-            
-            # ANALYSE APPROFONDIE DE LA PAGE
-            logger.info("=" * 80)
-            logger.info("🔬 ANALYSE DÉTAILLÉE DE LA PAGE D'AUTHENTIFICATION")
-            logger.info("=" * 80)
-            
-            # 1. Page source analysis
-            page_source = driver.page_source
-            logger.info(f"📄 Longueur HTML totale: {len(page_source)} caractères")
-            
-            # 2. Search for email-related keywords
-            email_keywords = ['email', 'identity', 'username', 'e-mail', 'mail']
-            logger.info("🔍 Recherche de mots-clés dans le HTML:")
-            for keyword in email_keywords:
-                count = page_source.lower().count(keyword)
-                logger.info(f"   • '{keyword}': {count} occurrences {'✅' if count > 0 else '❌'}")
-            
-            # 3. Find ALL input fields
-            try:
-                all_inputs = driver.find_elements(By.TAG_NAME, 'input')
-                logger.info(f"\n📝 TOUS LES CHAMPS INPUT DÉTECTÉS ({len(all_inputs)} au total):")
-                
-                for i, input_field in enumerate(all_inputs, 1):
-                    try:
-                        attrs = {
-                            'id': input_field.get_attribute('id'),
-                            'name': input_field.get_attribute('name'),
-                            'type': input_field.get_attribute('type'),
-                            'class': input_field.get_attribute('class'),
-                            'placeholder': input_field.get_attribute('placeholder'),
-                            'autocomplete': input_field.get_attribute('autocomplete'),
-                            'aria-label': input_field.get_attribute('aria-label'),
-                            'value': input_field.get_attribute('value'),
-                            'visible': input_field.is_displayed(),
-                            'enabled': input_field.is_enabled()
-                        }
-                        
-                        logger.info(f"\n   🔹 Input #{i}:")
-                        for key, value in attrs.items():
-                            if value:
-                                logger.info(f"      {key}: {value}")
-                    except Exception as e:
-                        logger.warning(f"      ⚠️ Erreur lecture attributs input #{i}: {e}")
-                        
-            except Exception as e:
-                logger.error(f"❌ Erreur lors de la recherche des inputs: {e}")
-            
-            # 4. Find ALL buttons
-            try:
-                all_buttons = driver.find_elements(By.TAG_NAME, 'button')
-                logger.info(f"\n🔘 TOUS LES BOUTONS DÉTECTÉS ({len(all_buttons)} au total):")
-                
-                for i, button in enumerate(all_buttons, 1):
-                    try:
-                        logger.info(f"   🔹 Button #{i}:")
-                        logger.info(f"      text: {button.text}")
-                        logger.info(f"      type: {button.get_attribute('type')}")
-                        logger.info(f"      class: {button.get_attribute('class')}")
-                        logger.info(f"      visible: {button.is_displayed()}")
-                    except Exception as e:
-                        logger.warning(f"      ⚠️ Erreur lecture bouton #{i}: {e}")
-                        
-            except Exception as e:
-                logger.error(f"❌ Erreur lors de la recherche des boutons: {e}")
-            
-            # 5. Save detailed page source for analysis
-            try:
-                debug_html_path = f"/app/static/scraper_run_{run.id}_login_page.html"
-                with open(debug_html_path, 'w', encoding='utf-8') as f:
-                    f.write(page_source)
-                logger.info(f"\n💾 Code HTML complet sauvegardé: scraper_run_{run.id}_login_page.html")
-            except Exception as e:
-                logger.warning(f"⚠️ Impossible de sauvegarder le HTML: {e}")
-            
-            logger.info("=" * 80)
-            logger.info("🎯 TENTATIVE DE CONNEXION AVEC LE CHAMP 'identity'")
-            logger.info("=" * 80)
             
             try:
                 wait = WebDriverWait(driver, 20)
                 
-                # Try multiple selectors (focus on identity first)
-                email_field = None
-                selectors = [
-                    ('input[name="identity"]', 'name="identity"'),
-                    ('input[type="email"]', 'type="email"'),
-                    ('input[name="email"]', 'name="email"'),
-                    ('input[id="email"]', 'id="email"'),
-                    ('input[id="identity"]', 'id="identity"'),
-                    ('input[placeholder*="mail" i]', 'placeholder contient "mail"'),
-                    ('input[autocomplete="email"]', 'autocomplete="email"')
-                ]
+                # Use only the identity selector (confirmed working)
+                logger.info("🔍 Recherche du champ: input[name='identity']")
+                email_field = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[name="identity"]')))
+                logger.info("✅ Champ identity trouvé!")
                 
-                for selector, description in selectors:
-                    try:
-                        logger.info(f"🔍 Essai sélecteur: {description} → {selector}")
-                        email_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
-                        logger.info(f"✅ CHAMP TROUVÉ avec: {description}")
-                        
-                        # Log field details
-                        logger.info(f"   📋 Détails du champ trouvé:")
-                        logger.info(f"      • Sélecteur: {selector}")
-                        logger.info(f"      • Visible: {email_field.is_displayed()}")
-                        logger.info(f"      • Enabled: {email_field.is_enabled()}")
-                        logger.info(f"      • Name: {email_field.get_attribute('name')}")
-                        logger.info(f"      • ID: {email_field.get_attribute('id')}")
-                        logger.info(f"      • Type: {email_field.get_attribute('type')}")
-                        break
-                    except TimeoutException:
-                        logger.warning(f"❌ Pas trouvé avec: {description}")
-                        continue
-                
-                if not email_field:
-                    raise Exception("❌ Aucun champ email/identity trouvé avec tous les sélecteurs testés")
-                
-                logger.info("✅ Champ email/identity détecté!")
-                
-                # Wait for field to be clickable
-                email_field = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
+                # Fill the email field
                 email_field.clear()
                 email_field.send_keys(email)
                 logger.info("✅ Email renseigné")
