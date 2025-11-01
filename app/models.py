@@ -1,5 +1,3 @@
-db = SQLAlchemy()
-
 """Database models for the web interface."""
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
