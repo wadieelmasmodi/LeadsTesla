@@ -77,10 +77,42 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
     logger.info("Scraper: starting new run")
     add_message("Scraper: starting new run")
     set_running(True)
+    
+    # Capture console logs and errors
+    console_logs = []
+    network_errors = []
+    
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        # Launch browser with options to avoid detection and enable JS
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-gpu'
+            ]
+        )
+        
+        # Create context with user agent and viewport
+        context = browser.new_context(
+            user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            viewport={'width': 1920, 'height': 1080},
+            locale='fr-FR',
+            timezone_id='Europe/Paris'
+        )
+        
         page = context.new_page()
+        
+        # Capture console messages
+        page.on("console", lambda msg: console_logs.append(f"[{msg.type}] {msg.text}"))
+        
+        # Capture page errors
+        page.on("pageerror", lambda exc: logger.error(f"Page error: {exc}"))
+        
+        # Capture failed requests
+        page.on("requestfailed", lambda req: network_errors.append(f"Failed: {req.url}"))
 
         try:
             logger.info(f"Scraper: navigating to {PORTAL_URL}")
@@ -275,6 +307,19 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
             db.session.commit()
             raise
         finally:
+            # Save console logs and network errors to details
+            debug_info = []
+            if console_logs:
+                debug_info.append(f"Console logs ({len(console_logs)}):")
+                debug_info.extend(console_logs[:20])  # Limit to 20 logs
+            if network_errors:
+                debug_info.append(f"\nNetwork errors ({len(network_errors)}):")
+                debug_info.extend(network_errors[:10])  # Limit to 10 errors
+            
+            if debug_info:
+                run.details = (run.details or "") + "\n\n" + "\n".join(debug_info)
+                db.session.commit()
+            
             try:
                 context.close()
             except Exception:
