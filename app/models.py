@@ -1,9 +1,20 @@
+db = SQLAlchemy()
+
 """Database models for the web interface."""
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 
 db = SQLAlchemy()
+
+class Lead(db.Model):
+    """Model to store leads from Tesla Portal."""
+    id = db.Column(db.Integer, primary_key=True)
+    source = db.Column(db.String(50))
+    key = db.Column(db.String(50), unique=True)
+    fetched_at = db.Column(db.DateTime)
+    data = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class ScraperAttempt(db.Model):
     """Model to track scraper connection attempts to Tesla."""
