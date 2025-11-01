@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from models import db, ScraperRun, Lead
 from config import PORTAL_URL
+from cookies_manager import load_cookies, cookies_exist
 
 # Configure logging to stdout for visibility
 logging.basicConfig(
@@ -56,7 +57,16 @@ def scrape_tesla_leads() -> Dict:
         db.session.commit()
         
         chrome_options = Options()
-        chrome_options.add_argument('--headless')
+        
+        # Check if we should run in headless mode
+        headless_mode = os.getenv('SCRAPER_HEADLESS', 'true').lower() == 'true'
+        
+        if headless_mode:
+            logger.info("🕶️ Mode headless activé")
+            chrome_options.add_argument('--headless')
+        else:
+            logger.info("👁️ Mode visible activé (pour résolution manuelle du captcha)")
+            
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
@@ -70,30 +80,89 @@ def scrape_tesla_leads() -> Dict:
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         driver.set_page_load_timeout(60)
         
-        # Get credentials
+        # Get credentials (needed if cookies fail)
         email = os.getenv('TESLA_EMAIL')
         password = os.getenv('TESLA_PASS')
         
         logger.info(f"📧 Email configuré: {'✅ Oui' if email else '❌ Non'}")
         logger.info(f"🔑 Password configuré: {'✅ Oui' if password else '❌ Non'}")
         
-        if not email or not password:
-            raise Exception("Credentials TESLA_EMAIL et TESLA_PASS requis")
+        # Check if we have saved cookies
+        has_cookies = cookies_exist()
+        logger.info(f"🍪 Cookies sauvegardés: {'✅ Oui' if has_cookies else '❌ Non'}")
         
-        # Navigate to Tesla portal
-        logger.info(f"🔗 Navigation vers {PORTAL_URL}")
-        run.phase_connexion = "Navigation vers le portail"
-        db.session.commit()
+        if has_cookies:
+            logger.info("🍪 Chargement des cookies pour authentification automatique...")
+            run.phase_connexion = "Chargement cookies"
+            db.session.commit()
+            
+            # First, navigate to domain to set cookies
+            logger.info("🔗 Navigation initiale vers auth.tesla.com...")
+            driver.get("https://auth.tesla.com")
+            time.sleep(2)
+            
+            # Load and inject cookies
+            cookies = load_cookies()
+            if cookies:
+                logger.info(f"� Injection de {len(cookies)} cookies...")
+                for cookie in cookies:
+                    try:
+                        # Remove problematic keys
+                        cookie_clean = {k: v for k, v in cookie.items() if k not in ['sameSite', 'expiry'] and v is not None}
+                        driver.add_cookie(cookie_clean)
+                    except Exception as e:
+                        logger.warning(f"⚠️ Cookie non injecté: {e}")
+                
+                logger.info("✅ Cookies injectés")
+                run.phase_connexion = "Cookies injectés - navigation"
+                db.session.commit()
+            
+            # Now navigate to portal with cookies
+            logger.info(f"🔗 Navigation vers {PORTAL_URL} avec cookies...")
+            driver.get(PORTAL_URL)
+            time.sleep(5)
+            
+            current_url = driver.current_url
+            logger.info(f"📍 URL après cookies: {current_url}")
+            
+            # Check if we're authenticated
+            if 'auth' not in current_url.lower() and 'login' not in current_url.lower():
+                logger.info("✅ Authentification par cookies réussie!")
+                run.phase_connexion = "Authentifié via cookies"
+                db.session.commit()
+                # Skip login process
+                should_login = False
+            else:
+                logger.warning("⚠️ Cookies expirés ou invalides, passage au login classique...")
+                run.phase_connexion = "Cookies invalides - login requis"
+                db.session.commit()
+                should_login = True
+        else:
+            # No cookies, need to login
+            logger.info("🔐 Pas de cookies - login requis")
+            should_login = True
+            
+            # Navigate to Tesla portal
+            logger.info(f"🔗 Navigation vers {PORTAL_URL}")
+            run.phase_connexion = "Navigation vers le portail"
+            db.session.commit()
+            
+            driver.get(PORTAL_URL)
+            logger.info("⏳ Attente du chargement de la page (10 secondes)...")
+            time.sleep(10)  # Give the page time to fully load
         
-        driver.get(PORTAL_URL)
-        logger.info("⏳ Attente du chargement de la page (10 secondes)...")
-        time.sleep(10)  # Give the page time to fully load
-        
-        current_url = driver.current_url
-        logger.info(f"📍 URL actuelle: {current_url}")
+        # If we used cookies and are authenticated, skip login
+        if has_cookies and not should_login:
+            logger.info("✅ Authentification par cookies - skip login")
+        else:
+            current_url = driver.current_url
+            logger.info(f"📍 URL actuelle: {current_url}")
+            
+            if not email or not password:
+                raise Exception("Credentials TESLA_EMAIL et TESLA_PASS requis pour le login")
         
         # Check if we're on login/auth page
-        if 'auth' in current_url.lower() or 'login' in current_url.lower() or 'signin' in current_url.lower():
+        if should_login and ('auth' in current_url.lower() or 'login' in current_url.lower() or 'signin' in current_url.lower()):
             logger.info("🔐 Page d'authentification détectée")
             run.phase_connexion = "Sur la page de login"
             db.session.commit()

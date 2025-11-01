@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export Cookies Tesla</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #E82127;
+            margin-bottom: 10px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #E82127;
+        }
+        button {
+            background: #E82127;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #c91d23;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 300px;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍪 Export Cookies Tesla</h1>
+        <p>Cet outil vous permet d'exporter vos cookies Tesla pour bypasser le hCaptcha.</p>
+        
+        <div class="info">
+            <strong>📋 Instructions:</strong>
+            <ol>
+                <li>Connectez-vous à <a href="https://auth.tesla.com" target="_blank">auth.tesla.com</a> dans un autre onglet</li>
+                <li>Résolvez le captcha et terminez l'authentification</li>
+                <li>Revenez ici et cliquez sur "Extraire Cookies"</li>
+                <li>Vérifiez les cookies extraits</li>
+                <li>Cliquez sur "Upload vers le serveur"</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>Étape 1: Extraire les cookies</h3>
+            <button onclick="extractCookies()">🔍 Extraire Cookies</button>
+            <p id="extract-status"></p>
+        </div>
+
+        <div class="step" id="cookies-display" style="display:none;">
+            <h3>Étape 2: Vérifier les cookies</h3>
+            <p>Nombre de cookies: <span id="cookies-count">0</span></p>
+            <pre id="cookies-preview"></pre>
+        </div>
+
+        <div class="step" id="upload-section" style="display:none;">
+            <h3>Étape 3: Upload vers le serveur</h3>
+            <button onclick="uploadCookies()">📤 Upload vers le serveur</button>
+            <p id="upload-status"></p>
+        </div>
+    </div>
+
+    <script>
+        let extractedCookies = [];
+
+        async function extractCookies() {
+            try {
+                // Get all cookies for auth.tesla.com and partners.tesla.com
+                const cookies = await chrome.cookies.getAll({});
+                
+                // Filter Tesla cookies
+                const teslaCookies = cookies.filter(c => 
+                    c.domain.includes('tesla.com') || 
+                    c.domain.includes('.tesla.com')
+                );
+                
+                if (teslaCookies.length === 0) {
+                    document.getElementById('extract-status').innerHTML = 
+                        '<span class="error">❌ Aucun cookie Tesla trouvé. Êtes-vous connecté à auth.tesla.com?</span>';
+                    return;
+                }
+                
+                extractedCookies = teslaCookies;
+                
+                document.getElementById('extract-status').innerHTML = 
+                    `<span class="success">✅ ${teslaCookies.length} cookies extraits</span>`;
+                
+                document.getElementById('cookies-count').textContent = teslaCookies.length;
+                document.getElementById('cookies-preview').textContent = 
+                    JSON.stringify(teslaCookies.slice(0, 3), null, 2) + '\n... (premiers 3 cookies)';
+                
+                document.getElementById('cookies-display').style.display = 'block';
+                document.getElementById('upload-section').style.display = 'block';
+                
+            } catch (error) {
+                // Fallback for non-extension context
+                console.error('Chrome extension API not available:', error);
+                
+                // Manual extraction method
+                const cookiesStr = document.cookie;
+                const cookiesArray = cookiesStr.split(';').map(c => {
+                    const [name, value] = c.trim().split('=');
+                    return {
+                        name: name,
+                        value: value,
+                        domain: window.location.hostname,
+                        path: '/'
+                    };
+                });
+                
+                extractedCookies = cookiesArray;
+                
+                document.getElementById('extract-status').innerHTML = 
+                    `<span class="success">✅ ${cookiesArray.length} cookies extraits (méthode simplifiée)</span><br>` +
+                    `<small>⚠️ Pour de meilleurs résultats, utilisez cette page depuis auth.tesla.com ou installez l'extension EditThisCookie</small>`;
+                
+                document.getElementById('cookies-count').textContent = cookiesArray.length;
+                document.getElementById('cookies-preview').textContent = 
+                    JSON.stringify(cookiesArray, null, 2);
+                
+                document.getElementById('cookies-display').style.display = 'block';
+                document.getElementById('upload-section').style.display = 'block';
+            }
+        }
+
+        async function uploadCookies() {
+            if (extractedCookies.length === 0) {
+                alert('Veuillez d\'abord extraire les cookies');
+                return;
+            }
+            
+            document.getElementById('upload-status').innerHTML = '⏳ Upload en cours...';
+            
+            try {
+                const response = await fetch('/upload-cookies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(extractedCookies)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    document.getElementById('upload-status').innerHTML = 
+                        `<span class="success">✅ ${result.message}</span><br>` +
+                        `<small>Vous pouvez maintenant lancer le scraper depuis le dashboard</small>`;
+                } else {
+                    document.getElementById('upload-status').innerHTML = 
+                        `<span class="error">❌ Erreur: ${result.message}</span>`;
+                }
+            } catch (error) {
+                document.getElementById('upload-status').innerHTML = 
+                    `<span class="error">❌ Erreur de connexion: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

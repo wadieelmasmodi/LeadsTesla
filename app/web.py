@@ -165,6 +165,50 @@ def scrape_now():
     return redirect(url_for('dashboard', tab=tab))
 
 
+@app.route('/upload-cookies', methods=['POST'])
+@login_required
+def upload_cookies():
+    """Upload Tesla cookies to bypass captcha."""
+    try:
+        from cookies_manager import save_cookies
+        
+        cookies_json = request.json
+        if not cookies_json:
+            return jsonify({'status': 'error', 'message': 'No cookies provided'}), 400
+        
+        save_cookies(cookies_json)
+        logger.info(f"Cookies uploaded by {current_user.email}")
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'{len(cookies_json)} cookies saved successfully',
+            'count': len(cookies_json)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading cookies: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/cookies-status')
+@login_required
+def cookies_status():
+    """Check if cookies are available."""
+    try:
+        from cookies_manager import cookies_exist
+        exists = cookies_exist()
+        return jsonify({'exists': exists})
+    except Exception as e:
+        return jsonify({'exists': False, 'error': str(e)})
+
+
+@app.route('/cookies-export')
+@login_required
+def cookies_export_page():
+    """Page to export and upload cookies."""
+    return render_template('cookies_export.html')
+
+
 @app.route('/scrape-status')
 @login_required
 def scrape_status():
