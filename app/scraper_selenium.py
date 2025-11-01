@@ -102,16 +102,27 @@ def scrape_tesla_leads() -> Dict:
             if cookies:
                 logger.info(f"📦 {len(cookies)} cookies chargés depuis le fichier")
                 
+                # Normalize domains: www.tesla.com -> auth.tesla.com
+                normalized_cookies = []
+                for c in cookies:
+                    domain = c.get('domain', '')
+                    # Convert www.tesla.com to auth.tesla.com for auth compatibility
+                    if domain == 'www.tesla.com':
+                        domain = 'auth.tesla.com'
+                        logger.debug(f"Domain normalized: www.tesla.com -> auth.tesla.com for cookie '{c.get('name')}'")
+                    c['domain'] = domain
+                    normalized_cookies.append(c)
+                
                 # Filter cookies - only keep Tesla domains
-                tesla_cookies = [c for c in cookies if 'tesla.com' in c.get('domain', '').lower()]
+                tesla_cookies = [c for c in normalized_cookies if 'tesla.com' in c.get('domain', '').lower()]
                 
                 if not tesla_cookies:
                     logger.warning("⚠️ AUCUN COOKIE TESLA DÉTECTÉ!")
                     logger.warning("Les cookies chargés proviennent d'autres domaines (ex: api2.energum.earth)")
                     logger.warning("Le scraper va fallback au login classique")
                     should_login = True
-                elif len(tesla_cookies) < len(cookies):
-                    non_tesla = len(cookies) - len(tesla_cookies)
+                elif len(tesla_cookies) < len(normalized_cookies):
+                    non_tesla = len(normalized_cookies) - len(tesla_cookies)
                     logger.warning(f"⚠️ {non_tesla} cookies ignorés (domaines non-Tesla)")
                     logger.info(f"✅ {len(tesla_cookies)} cookies Tesla détectés")
                 
