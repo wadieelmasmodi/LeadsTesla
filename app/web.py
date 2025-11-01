@@ -11,7 +11,7 @@ from flask_cors import CORS
 import requests
 from models import db, User, LoginAttempt, Lead, ScraperAttempt, ScraperRun
 import threading
-from scraper import fetch_leads
+from scraper_new import scrape_tesla_leads
 from config import PORTAL_URL
 from logger import get_logger
 from config import N8N_WEBHOOK_URL
@@ -130,7 +130,7 @@ def scrape_now():
             def _background():
                 with app.app_context():
                     try:
-                        fetch_leads(logger)
+                        scrape_tesla_leads()
                     except Exception as e:
                         logger.error(f"Background scrape failed: {e}")
 
@@ -140,7 +140,7 @@ def scrape_now():
         def _background():
             with app.app_context():
                 try:
-                    fetch_leads(logger)
+                    scrape_tesla_leads()
                 except Exception as e:
                     logger.error(f"Background scrape failed: {e}")
 
