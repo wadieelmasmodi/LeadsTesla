@@ -86,7 +86,8 @@ def scrape_tesla_leads() -> Dict:
         db.session.commit()
         
         driver.get(PORTAL_URL)
-        time.sleep(3)
+        logger.info("⏳ Attente du chargement de la page (10 secondes)...")
+        time.sleep(10)  # Give the page time to fully load
         
         current_url = driver.current_url
         logger.info(f"📍 URL actuelle: {current_url}")
@@ -97,17 +98,61 @@ def scrape_tesla_leads() -> Dict:
             run.phase_connexion = "Sur la page de login"
             db.session.commit()
             
+            # Take screenshot of login page for debugging
+            login_screenshot = f"scraper_run_{run.id}_login_page.png"
+            login_screenshot_path = f"/app/static/{login_screenshot}"
+            os.makedirs('/app/static', exist_ok=True)
+            driver.save_screenshot(login_screenshot_path)
+            logger.info(f"📸 Screenshot de la page de login: {login_screenshot}")
+            
             # STEP 1: Enter email
             logger.info("📧 Étape 1: Recherche du champ email...")
+            logger.info("⏳ Attente de 5 secondes supplémentaires pour le formulaire...")
+            time.sleep(5)
+            
+            # Log page source for debugging
+            page_source = driver.page_source
+            logger.info(f"📄 Longueur HTML: {len(page_source)} caractères")
+            if 'email' in page_source.lower():
+                logger.info("✅ Le mot 'email' est présent dans le HTML")
+            else:
+                logger.warning("⚠️ Le mot 'email' n'est PAS dans le HTML!")
+            
             try:
-                wait = WebDriverWait(driver, 10)
-                email_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[type="email"], input[name="email"], input[id*="email"]')))
-                logger.info("✅ Champ email trouvé")
+                wait = WebDriverWait(driver, 20)  # Augmenté de 10 à 20 secondes
                 
+                # Try multiple selectors
+                email_field = None
+                selectors = [
+                    'input[type="email"]',
+                    'input[name="email"]',
+                    'input[id="email"]',
+                    'input[name="identity"]',
+                    'input[placeholder*="mail" i]',
+                    'input[autocomplete="email"]'
+                ]
+                
+                for selector in selectors:
+                    try:
+                        logger.info(f"   🔍 Essai sélecteur: {selector}")
+                        email_field = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, selector)))
+                        logger.info(f"   ✅ Champ trouvé avec: {selector}")
+                        break
+                    except TimeoutException:
+                        logger.info(f"   ❌ Pas trouvé avec: {selector}")
+                        continue
+                
+                if not email_field:
+                    raise Exception("Aucun champ email trouvé avec tous les sélecteurs")
+                
+                logger.info("✅ Champ email trouvé!")
+                
+                # Wait for field to be clickable
+                email_field = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, selector)))
                 email_field.clear()
                 email_field.send_keys(email)
                 logger.info("✅ Email renseigné")
-                time.sleep(1)
+                time.sleep(2)
                 
                 # Look for Next button
                 try:
