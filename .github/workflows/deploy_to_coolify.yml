@@ -1,0 +1,24 @@
+name: Trigger Coolify Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  trigger-coolify:
+    name: Trigger Coolify webhook
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Call Coolify webhook
+        env:
+          COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK_URL" ]; then
+            echo "COOLIFY_WEBHOOK_URL secret is not set. Aborting.";
+            exit 1;
+          fi
+          # POST empty payload to trigger a build in Coolify
+          curl -sSf -X POST "$COOLIFY_WEBHOOK_URL" -H "Content-Type: application/json" -d '{"ref":"main"}'

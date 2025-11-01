@@ -45,8 +45,8 @@ def scrape_tesla_leads() -> Dict:
     
     with sync_playwright() as p:
         try:
-            # Launch browser
-            logger.info("🌐 Lancement du navigateur Chromium...")
+            # Launch browser with anti-detection
+            logger.info("🌐 Lancement du navigateur Chromium avec anti-détection...")
             run.phase_connexion = "Lancement du navigateur"
             db.session.commit()
             
@@ -56,31 +56,52 @@ def scrape_tesla_leads() -> Dict:
                     '--disable-blink-features=AutomationControlled',
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage'
+                    '--disable-dev-shm-usage',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--disable-site-isolation-trials'
                 ]
             )
             
             context = browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                viewport={'width': 1920, 'height': 1080}
+                viewport={'width': 1920, 'height': 1080},
+                locale='fr-FR',
+                timezone_id='Europe/Paris',
+                extra_http_headers={
+                    'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7'
+                }
             )
+            
+            # Add script to hide automation
+            context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
             
             page = context.new_page()
             
-            # Navigate to Tesla portal
-            logger.info(f"🔗 Navigation vers {PORTAL_URL}")
-            run.phase_connexion = "Navigation vers le portail"
+            # Navigate to Tesla login page first (not directly to leads)
+            tesla_login_url = "https://auth.tesla.com/oauth2/v3/authorize"
+            logger.info(f"🔗 Navigation vers la page de login Tesla...")
+            run.phase_connexion = "Navigation vers login"
             db.session.commit()
             
-            page.goto(PORTAL_URL, wait_until='domcontentloaded', timeout=60000)
-            logger.info("✅ Page chargée (DOM ready)")
+            page.goto(tesla_login_url, wait_until='domcontentloaded', timeout=60000)
+            logger.info("✅ Page de login chargée (DOM ready)")
             
             # Wait for page to be interactive
+            time.sleep(2)
             page.wait_for_load_state('networkidle', timeout=30000)
             
-            # Check current URL to see if we were redirected to login
+            # Check current URL
             current_url = page.url
             logger.info(f"📍 URL actuelle: {current_url}")
+            
+            # Get page HTML for debugging
+            page_html = page.content()
+            logger.info(f"📄 Longueur HTML: {len(page_html)} caractères")
             
             # Check if login is needed
             logger.info("🔐 Vérification de l'authentification...")
@@ -96,15 +117,43 @@ def scrape_tesla_leads() -> Dict:
             
             if email and password:
                 try:
-                    # Check if we're on a login page
-                    if 'auth' in current_url.lower() or 'login' in current_url.lower() or 'signin' in current_url.lower():
-                        logger.info("🔐 Page de login détectée, début du processus d'authentification...")
-                        run.phase_connexion = "Sur la page de login"
-                        db.session.commit()
-                        
-                        # STEP 1: Enter email
-                        email_inputs = page.locator('input[type="email"], input[name="email"], input[id*="email"]').count()
-                        logger.info(f"🔍 Champs email trouvés: {email_inputs}")
+                    # Check if we're on an error page
+                    if 'error' in current_url.lower():
+                        logger.warning("⚠️ Page d'erreur détectée! Tentative de navigation directe vers le portail...")
+                        page.goto(PORTAL_URL, wait_until='networkidle', timeout=60000)
+                        time.sleep(3)
+                        current_url = page.url
+                        logger.info(f"� Nouvelle URL: {current_url}")
+                    
+                    # Look for email input fields with multiple selectors
+                    logger.info("🔍 Recherche des champs de formulaire...")
+                    run.phase_connexion = "Recherche formulaire login"
+                    db.session.commit()
+                    
+                    # Wait for form to appear
+                    time.sleep(2)
+                    
+                    # Try multiple selectors
+                    selectors_to_try = [
+                        'input[type="email"]',
+                        'input[name="email"]',
+                        'input[id*="email"]',
+                        'input[id="email"]',
+                        'input[placeholder*="mail"]',
+                        'input[placeholder*="Email"]'
+                    ]
+                    
+                    email_inputs = 0
+                    email_selector = None
+                    for selector in selectors_to_try:
+                        count = page.locator(selector).count()
+                        if count > 0:
+                            email_inputs = count
+                            email_selector = selector
+                            logger.info(f"✅ Champs email trouvés avec sélecteur: {selector}")
+                            break
+                    
+                    logger.info(f"🔍 Total champs email trouvés: {email_inputs}")
                         
                         if email_inputs > 0:
                             logger.info("� Étape 1: Saisie de l'email...")

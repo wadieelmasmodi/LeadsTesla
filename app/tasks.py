@@ -2,7 +2,7 @@ import os
 import logging
 from logger import get_logger
 from app_factory import create_app
-from scraper_new import scrape_tesla_leads
+from scraper_selenium import scrape_tesla_leads
 
 logger = get_logger(__name__)
 
