@@ -75,7 +75,7 @@ def scrape_tesla_leads() -> Dict:
             
             # Try to login if credentials are available
             email = os.getenv('TESLA_EMAIL')
-            password = os.getenv('TESLA_PASSWORD')
+            password = os.getenv('TESLA_PASS')
             
             if email and password:
                 try:
