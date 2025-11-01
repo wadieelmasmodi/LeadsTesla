@@ -5,392 +5,132 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Export Cookies Tesla</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 900px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #E82127;
-            margin-bottom: 10px;
-        }
-        .step {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f8f9fa;
-            border-left: 4px solid #E82127;
-        }
-        .step h3 {
-            margin-top: 0;
-            color: #333;
-        }
-        button {
-            background: #E82127;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 5px;
-        }
-        button:hover {
-            background: #c91d23;
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .success {
-            color: #28a745;
-            font-weight: bold;
-        }
-        .error {
-            color: #dc3545;
-            font-weight: bold;
-        }
-        .warning {
-            color: #856404;
-            font-weight: bold;
-        }
-        pre {
-            background: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
-            overflow-x: auto;
-            max-height: 300px;
-            border: 1px solid #ddd;
-        }
-        .info {
-            background: #d1ecf1;
-            border: 1px solid #bee5eb;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-        }
-        .warning-box {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-        }
-        .code-snippet {
-            background: #2d2d2d;
-            color: #f8f8f2;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            margin: 10px 0;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-        .domain-check {
-            margin: 10px 0;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background: #f9f9f9;
-        }
-        .domain-check strong {
-            color: #E82127;
-        }
-        a {
-            color: #E82127;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 700px; width: 100%; padding: 40px; }
+        h1 { color: #E82127; font-size: 32px; margin-bottom: 10px; text-align: center; }
+        .subtitle { color: #666; text-align: center; margin-bottom: 25px; font-size: 15px; }
+        .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 5px; margin-bottom: 30px; font-size: 14px; line-height: 1.6; }
+        .alert strong { color: #856404; }
+        .step { background: #f8f9fa; border-left: 4px solid #E82127; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .step-num { display: inline-block; background: #E82127; color: white; width: 36px; height: 36px; border-radius: 50%; text-align: center; line-height: 36px; font-weight: bold; margin-right: 12px; font-size: 16px; }
+        .step h2 { color: #333; font-size: 18px; margin-bottom: 12px; display: flex; align-items: center; }
+        .step p { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 10px; }
+        .step ol { margin-left: 25px; color: #666; font-size: 14px; }
+        .step li { margin-bottom: 8px; line-height: 1.5; }
+        .code { background: #2d2d2d; color: #f8f8f2; padding: 14px; border-radius: 5px; font-family: monospace; font-size: 11px; overflow-x: auto; margin: 12px 0; line-height: 1.4; border: 1px solid #1e1e1e; word-break: break-all; }
+        code { background: #f4f4f4; padding: 3px 6px; border-radius: 3px; font-family: monospace; font-size: 13px; }
+        button { background: #E82127; color: white; border: none; padding: 13px 28px; font-size: 15px; font-weight: 600; border-radius: 6px; cursor: pointer; transition: all 0.3s ease; width: 100%; margin-top: 12px; }
+        button:hover { background: #c91d23; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(232, 33, 39, 0.3); }
+        textarea { width: 100%; height: 100px; padding: 12px; border: 2px solid #ddd; border-radius: 5px; font-family: monospace; font-size: 12px; resize: vertical; margin: 10px 0; }
+        textarea:focus { outline: none; border-color: #E82127; box-shadow: 0 0 0 3px rgba(232, 33, 39, 0.1); }
+        .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; border-radius: 5px; color: #155724; font-size: 14px; margin-top: 15px; }
+        .error-box { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; border-radius: 5px; color: #721c24; font-size: 14px; margin-top: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🍪 Export Cookies Tesla</h1>
-        <p>Cet outil vous permet d'exporter vos cookies Tesla pour bypasser le hCaptcha.</p>
-        
-        <div class="warning-box">
-            <strong>⚠️ IMPORTANT:</strong> Vous devez extraire les cookies <strong>DEPUIS TESLA</strong>, pas depuis cette page!<br>
-            Cette page est sur <code>api2.energum.earth</code>, mais vous avez besoin des cookies de <code>tesla.com</code> / <code>auth.tesla.com</code>
-        </div>
-        
-        <div class="info">
-            <strong>📋 Instructions:</strong>
+        <p class="subtitle">Récupérez vos cookies Tesla pour contourner le hCaptcha</p>
+
+        <div class="alert">
+            <strong>⚠️ Important:</strong> Les cookies DOIVENT venir de <strong>Tesla</strong> (auth.tesla.com), PAS de cette application!
         </div>
 
         <div class="step">
-            <h3>✅ Étape 1: Ouvrir Tesla dans un nouvel onglet</h3>
-            <p>Cliquez sur le bouton ci-dessous pour ouvrir Tesla dans un nouvel onglet:</p>
-            <button onclick="window.open('https://auth.tesla.com', '_blank')">
-                🔗 Ouvrir auth.tesla.com
-            </button>
-            <p><em>Gardez cet onglet ouvert pour revenir après la connexion.</em></p>
+            <h2><span class="step-num">1</span> Ouvrir Tesla</h2>
+            <p>Cliquez pour ouvrir Tesla dans un nouvel onglet:</p>
+            <button onclick="window.open('https://auth.tesla.com', '_blank')">🔗 Ouvrir Tesla</button>
         </div>
 
         <div class="step">
-            <h3>🔐 Étape 2: Se connecter à Tesla</h3>
-            <p>Dans le nouvel onglet Tesla:</p>
-            <ul>
-                <li>Connectez-vous avec vos identifiants Tesla</li>
-                <li>Résolvez le hCaptcha si nécessaire</li>
-                <li>Accédez à <a href="https://partners.tesla.com/home" target="_blank">partners.tesla.com</a></li>
-            </ul>
-        </div>
-
-        <div class="step">
-            <h3>💾 Étape 3: Extraire les cookies Tesla</h3>
-            <p>Une fois connecté à Tesla, dans le même onglet Tesla:</p>
+            <h2><span class="step-num">2</span> Se connecter</h2>
+            <p>Dans l'onglet Tesla qui s'est ouvert:</p>
             <ol>
-                <li>Appuyez sur <code>F12</code> pour ouvrir la console (DevTools)</li>
-                <li>Allez à l'onglet <code>Application</code> (ou <code>Storage</code>)</li>
-                <li>Cliquez sur <code>Cookies</code> → <code>https://auth.tesla.com</code></li>
-                <li>Sélectionnez tous les cookies (Ctrl+A) et copiez-les</li>
+                <li>Connectez-vous avec votre email Tesla</li>
+                <li>Entrez votre mot de passe</li>
+                <li>Complétez le hCaptcha (si demandé)</li>
+                <li>Attendez que vous arriviez sur le portail</li>
             </ol>
-            <p style="color: #999;">Ou utilisez cette commande dans la console (onglet Console):</p>
-            <div class="code-snippet">
-copy(JSON.stringify(document.cookie.split('; ').map(c => {const [n,v] = c.split('='); return {name: n, value: v}}), null, 2))
-            </div>
         </div>
 
         <div class="step">
-            <h3>📋 Étape 4: Coller les cookies ici</h3>
-            <p>Collez les cookies que vous avez extraits de Tesla:</p>
-            <textarea id="cookiesInput" style="width: 100%; height: 150px; font-family: monospace;" 
-                      placeholder='Collez les cookies au format JSON ici, par exemple:
-[
-  {
-    "name": "session_id",
-    "value": "...",
-    "domain": ".auth.tesla.com"
-  }
-]'></textarea>
-            <br>
-            <button onclick="validateAndUploadCookies()">📤 Valider et uploader les cookies</button>
+            <h2><span class="step-num">3</span> Copier les cookies</h2>
+            <p>Une fois connecté, exécutez cette commande dans la console (appuyez sur <code>F12</code> → onglet <code>Console</code>):</p>
+            <div class="code">copy(JSON.stringify(document.cookie.split('; ').map(c => {const [n,v] = c.split('='); return {name: n, value: decodeURIComponent(v), domain: 'auth.tesla.com', path: '/'}}), null, 2))</div>
+            <p style="color: #999; font-size: 13px;"><em>Collez, appuyez sur Entrée. Les cookies seront copiés automatiquement.</em></p>
         </div>
 
         <div class="step">
-            <h3>🔍 Vérification des domaines</h3>
-            <div id="domainCheckResults"></div>
+            <h2><span class="step-num">4</span> Sauvegarder</h2>
+            <p>Collez les cookies ici:</p>
+            <textarea id="cookiesInput" placeholder="Les cookies Tesla vont s'afficher ici..."></textarea>
+            <button onclick="validateAndSave()">✅ Sauvegarder</button>
+            <div id="resultMessage"></div>
         </div>
-
-        <div id="uploadResult" style="display: none; margin-top: 20px;"></div>
-
     </div>
 
     <script>
-        function validateAndUploadCookies() {
+        function validateAndSave() {
             const input = document.getElementById('cookiesInput').value.trim();
-            const resultDiv = document.getElementById('uploadResult');
-            const domainDiv = document.getElementById('domainCheckResults');
-            
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.innerHTML = '';
+
             if (!input) {
-                resultDiv.innerHTML = '<p class="error">❌ Veuillez coller les cookies</p>';
-                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<div class="error-box">Veuillez coller les cookies!</div>';
                 return;
             }
-            
+
             try {
-                // Try to parse as JSON
                 let cookies = JSON.parse(input);
                 
-                // If it's a string of key=value pairs, parse it differently
-                if (typeof cookies === 'string') {
-                    cookies = cookies.split('; ').map(c => {
-                        const [name, value] = c.split('=');
-                        return {name, value, domain: '.tesla.com', path: '/'};
-                    });
-                }
-                
                 if (!Array.isArray(cookies)) {
-                    throw new Error('Format invalide');
+                    throw new Error('Format invalide - attendu un tableau JSON');
                 }
-                
-                // Check domains
-                let domainInfo = '<strong>Domaines détectés:</strong><br>';
-                const domains = new Set(cookies.map(c => c.domain || 'unknown'));
-                domains.forEach(d => {
-                    const isTesla = d && d.includes('tesla.com');
-                    const icon = isTesla ? '✅' : '⚠️';
-                    domainDiv.innerHTML += `<div class="domain-check">${icon} <strong>${d}</strong> ${!isTesla ? '(⚠️ NON Tesla)' : '(✅ Correct)'}</div>`;
-                });
-                
-                // Check for Tesla domains
-                const hasTeslaDomains = Array.from(domains).some(d => d && d.includes('tesla.com'));
-                if (!hasTeslaDomains) {
-                    resultDiv.innerHTML = `<p class="warning">⚠️ ATTENTION: Aucun cookie du domaine Tesla détecté!</p>
-                                          <p>Vous avez peut-être copié les cookies de <strong>api2.energum.earth</strong> au lieu de <strong>tesla.com</strong></p>
-                                          <p>Veuillez:</p>
-                                          <ol>
-                                            <li>Retourner à l'onglet Tesla (auth.tesla.com)</li>
-                                            <li>Ouvrir F12 → Application → Cookies</li>
-                                            <li>Sélectionner les cookies de <strong>https://auth.tesla.com</strong></li>
-                                            <li>Réessayer</li>
-                                          </ol>`;
-                    resultDiv.style.display = 'block';
-                    return;
+
+                if (cookies.length === 0) {
+                    throw new Error('Le tableau de cookies est vide');
                 }
-                
-                // Upload cookies
-                fetch('/upload-cookies', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(cookies)
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        resultDiv.innerHTML = `<p class="success">✅ ${data.message}</p>
-                                              <p>Les cookies Tesla ont été sauvegardés! Vous pouvez maintenant lancer le scraper.</p>`;
-                    } else {
-                        resultDiv.innerHTML = `<p class="error">❌ Erreur: ${data.message}</p>`;
-                    }
-                    resultDiv.style.display = 'block';
-                })
-                .catch(error => {
-                    resultDiv.innerHTML = `<p class="error">❌ Erreur d'upload: ${error.message}</p>`;
-                    resultDiv.style.display = 'block';
-                });
-                
-            } catch (e) {
-                resultDiv.innerHTML = `<p class="error">❌ Erreur de parsing JSON: ${e.message}</p>
-                                      <p>Assurez-vous que le format est valide JSON</p>`;
-                resultDiv.style.display = 'block';
-            }
-        }
-    </script>
-</body>
-</html>
-                <li>Résolvez le captcha et terminez l'authentification</li>
-                <li>Revenez ici et cliquez sur "Extraire Cookies"</li>
-                <li>Vérifiez les cookies extraits</li>
-                <li>Cliquez sur "Upload vers le serveur"</li>
-            </ol>
-        </div>
 
-        <div class="step">
-            <h3>Étape 1: Extraire les cookies</h3>
-            <button onclick="extractCookies()">🔍 Extraire Cookies</button>
-            <p id="extract-status"></p>
-        </div>
-
-        <div class="step" id="cookies-display" style="display:none;">
-            <h3>Étape 2: Vérifier les cookies</h3>
-            <p>Nombre de cookies: <span id="cookies-count">0</span></p>
-            <pre id="cookies-preview"></pre>
-        </div>
-
-        <div class="step" id="upload-section" style="display:none;">
-            <h3>Étape 3: Upload vers le serveur</h3>
-            <button onclick="uploadCookies()">📤 Upload vers le serveur</button>
-            <p id="upload-status"></p>
-        </div>
-    </div>
-
-    <script>
-        let extractedCookies = [];
-
-        async function extractCookies() {
-            try {
-                // Get all cookies for auth.tesla.com and partners.tesla.com
-                const cookies = await chrome.cookies.getAll({});
-                
-                // Filter Tesla cookies
-                const teslaCookies = cookies.filter(c => 
-                    c.domain.includes('tesla.com') || 
-                    c.domain.includes('.tesla.com')
+                const hasTeslaDomains = cookies.some(c => 
+                    c.domain && c.domain.toLowerCase().includes('tesla.com')
                 );
                 
-                if (teslaCookies.length === 0) {
-                    document.getElementById('extract-status').innerHTML = 
-                        '<span class="error">❌ Aucun cookie Tesla trouvé. Êtes-vous connecté à auth.tesla.com?</span>';
+                if (!hasTeslaDomains) {
+                    resultDiv.innerHTML = '<div class="error-box">Erreur: Aucun cookie Tesla détecté! Assurez-vous d\'avoir ouvert auth.tesla.com et d\'avoir exécuté la commande dans la console.</div>';
                     return;
                 }
+
+                resultDiv.innerHTML = '<div style="text-align: center; color: #666;">Sauvegarde en cours...</div>';
                 
-                extractedCookies = teslaCookies;
-                
-                document.getElementById('extract-status').innerHTML = 
-                    `<span class="success">✅ ${teslaCookies.length} cookies extraits</span>`;
-                
-                document.getElementById('cookies-count').textContent = teslaCookies.length;
-                document.getElementById('cookies-preview').textContent = 
-                    JSON.stringify(teslaCookies.slice(0, 3), null, 2) + '\n... (premiers 3 cookies)';
-                
-                document.getElementById('cookies-display').style.display = 'block';
-                document.getElementById('upload-section').style.display = 'block';
-                
-            } catch (error) {
-                // Fallback for non-extension context
-                console.error('Chrome extension API not available:', error);
-                
-                // Manual extraction method
-                const cookiesStr = document.cookie;
-                const cookiesArray = cookiesStr.split(';').map(c => {
-                    const [name, value] = c.trim().split('=');
-                    return {
-                        name: name,
-                        value: value,
-                        domain: window.location.hostname,
-                        path: '/'
-                    };
+                fetch('/upload-cookies', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: input
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        resultDiv.innerHTML = '<div class="success-box">Succes! ' + data.message + '<br><br>Vous pouvez maintenant fermer cet onglet et lancer le scraper.</div>';
+                        document.getElementById('cookiesInput').value = '';
+                    } else {
+                        resultDiv.innerHTML = '<div class="error-box">Erreur: ' + data.message + '</div>';
+                    }
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<div class="error-box">Erreur d\'upload: ' + error.message + '</div>';
                 });
-                
-                extractedCookies = cookiesArray;
-                
-                document.getElementById('extract-status').innerHTML = 
-                    `<span class="success">✅ ${cookiesArray.length} cookies extraits (méthode simplifiée)</span><br>` +
-                    `<small>⚠️ Pour de meilleurs résultats, utilisez cette page depuis auth.tesla.com ou installez l'extension EditThisCookie</small>`;
-                
-                document.getElementById('cookies-count').textContent = cookiesArray.length;
-                document.getElementById('cookies-preview').textContent = 
-                    JSON.stringify(cookiesArray, null, 2);
-                
-                document.getElementById('cookies-display').style.display = 'block';
-                document.getElementById('upload-section').style.display = 'block';
+
+            } catch (e) {
+                resultDiv.innerHTML = '<div class="error-box">Erreur: ' + e.message + '<br><br>Assurez-vous d\'avoir copié du JSON valide depuis la console.</div>';
             }
         }
 
-        async function uploadCookies() {
-            if (extractedCookies.length === 0) {
-                alert('Veuillez d\'abord extraire les cookies');
-                return;
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                validateAndSave();
             }
-            
-            document.getElementById('upload-status').innerHTML = '⏳ Upload en cours...';
-            
-            try {
-                const response = await fetch('/upload-cookies', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(extractedCookies)
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    document.getElementById('upload-status').innerHTML = 
-                        `<span class="success">✅ ${result.message}</span><br>` +
-                        `<small>Vous pouvez maintenant lancer le scraper depuis le dashboard</small>`;
-                } else {
-                    document.getElementById('upload-status').innerHTML = 
-                        `<span class="error">❌ Erreur: ${result.message}</span>`;
-                }
-            } catch (error) {
-                document.getElementById('upload-status').innerHTML = 
-                    `<span class="error">❌ Erreur de connexion: ${error.message}</span>`;
-            }
-        }
+        });
     </script>
 </body>
 </html>
