@@ -77,7 +77,10 @@ def scrape_tesla_leads() -> Dict:
             
             # Wait for page to be interactive
             page.wait_for_load_state('networkidle', timeout=30000)
-            logger.info("✅ Page interactive (network idle)")
+            
+            # Check current URL to see if we were redirected to login
+            current_url = page.url
+            logger.info(f"📍 URL actuelle: {current_url}")
             
             # Check if login is needed
             logger.info("🔐 Vérification de l'authentification...")
@@ -93,35 +96,95 @@ def scrape_tesla_leads() -> Dict:
             
             if email and password:
                 try:
-                    # Look for email input
-                    email_inputs = page.locator('input[type="email"]').count()
-                    logger.info(f"🔍 Champs email trouvés: {email_inputs}")
-                    
-                    if email_inputs > 0:
-                        logger.info("🔐 Formulaire de login détecté, authentification en cours...")
-                        page.fill('input[type="email"]', email)
-                        logger.info("✅ Email renseigné")
+                    # Check if we're on a login page
+                    if 'auth' in current_url.lower() or 'login' in current_url.lower() or 'signin' in current_url.lower():
+                        logger.info("🔐 Page de login détectée, début du processus d'authentification...")
+                        run.phase_connexion = "Sur la page de login"
+                        db.session.commit()
                         
-                        page.fill('input[type="password"]', password)
-                        logger.info("✅ Password renseigné")
+                        # STEP 1: Enter email
+                        email_inputs = page.locator('input[type="email"], input[name="email"], input[id*="email"]').count()
+                        logger.info(f"🔍 Champs email trouvés: {email_inputs}")
                         
-                        page.click('button[type="submit"]')
-                        logger.info("⏳ Clic sur le bouton de connexion, attente de la réponse...")
-                        
-                        page.wait_for_load_state('networkidle', timeout=30000)
-                        logger.info("✅ Authentification réussie!")
-                        run.phase_connexion = "Authentification réussie"
+                        if email_inputs > 0:
+                            logger.info("� Étape 1: Saisie de l'email...")
+                            page.fill('input[type="email"], input[name="email"], input[id*="email"]', email)
+                            logger.info("✅ Email renseigné")
+                            
+                            # Look for "Next" or "Continue" button
+                            time.sleep(1)
+                            next_button = page.locator('button:has-text("Next"), button:has-text("Suivant"), button:has-text("Continue"), button:has-text("Continuer"), button[type="submit"]').first
+                            if next_button.count() > 0:
+                                logger.info("⏭️ Clic sur le bouton Suivant/Next...")
+                                next_button.click()
+                                page.wait_for_load_state('networkidle', timeout=30000)
+                                logger.info("✅ Page suivante chargée")
+                                time.sleep(2)
+                            
+                            # STEP 2: Enter password
+                            logger.info("🔑 Étape 2: Saisie du mot de passe...")
+                            password_inputs = page.locator('input[type="password"], input[name="password"], input[id*="password"]').count()
+                            logger.info(f"🔍 Champs password trouvés: {password_inputs}")
+                            
+                            if password_inputs > 0:
+                                page.fill('input[type="password"], input[name="password"], input[id*="password"]', password)
+                                logger.info("✅ Password renseigné")
+                                
+                                # Click submit/login button
+                                time.sleep(1)
+                                submit_button = page.locator('button[type="submit"], button:has-text("Sign In"), button:has-text("Connexion"), button:has-text("Log In")').first
+                                if submit_button.count() > 0:
+                                    logger.info("🔐 Clic sur le bouton de connexion...")
+                                    submit_button.click()
+                                    logger.info("⏳ Attente de la réponse...")
+                                    page.wait_for_load_state('networkidle', timeout=30000)
+                                    
+                                    # Wait for redirect to leads page
+                                    time.sleep(3)
+                                    final_url = page.url
+                                    logger.info(f"📍 URL après login: {final_url}")
+                                    
+                                    if 'leads' in final_url or 'home' in final_url:
+                                        logger.info("✅ Authentification réussie! Redirigé vers le portail")
+                                        run.phase_connexion = "Authentification réussie"
+                                    else:
+                                        logger.warning(f"⚠️ Authentification incertaine, URL: {final_url}")
+                                        run.phase_connexion = f"Auth. incertaine: {final_url[:50]}"
+                                else:
+                                    logger.error("❌ Bouton de soumission non trouvé")
+                                    run.phase_connexion = "Erreur: bouton submit introuvable"
+                            else:
+                                logger.error("❌ Champ password non trouvé")
+                                run.phase_connexion = "Erreur: champ password introuvable"
+                        else:
+                            logger.error("❌ Champ email non trouvé sur la page de login")
+                            run.phase_connexion = "Erreur: champ email introuvable"
                     else:
-                        logger.info("✅ Déjà authentifié (pas de formulaire de login)")
+                        logger.info("✅ Déjà authentifié (pas de redirection vers login)")
                         run.phase_connexion = "Déjà authentifié"
+                        
                 except Exception as e:
                     logger.error(f"❌ Erreur lors du login: {e}")
+                    logger.error(f"Stack trace:", exc_info=True)
                     run.phase_connexion = f"Erreur login: {str(e)[:50]}"
             else:
-                logger.warning("⚠️ Pas de credentials fournis, on suppose être déjà connecté")
-                run.phase_connexion = "Pas de credentials (session existante?)"
+                logger.warning("⚠️ Pas de credentials fournis")
+                run.phase_connexion = "Pas de credentials"
             
             db.session.commit()
+            
+            # Verify we're on the right page
+            final_url = page.url
+            logger.info(f"📍 URL finale avant extraction: {final_url}")
+            
+            if 'leads' not in final_url.lower() and 'home' not in final_url.lower():
+                logger.warning(f"⚠️ Attention: pas sur la page des leads! URL: {final_url}")
+                # Try to navigate to leads page again
+                if final_url != PORTAL_URL:
+                    logger.info(f"🔄 Tentative de navigation vers {PORTAL_URL}")
+                    page.goto(PORTAL_URL, wait_until='networkidle', timeout=30000)
+                    time.sleep(3)
+                    logger.info(f"📍 Nouvelle URL: {page.url}")
             
             # Take screenshot for debugging
             screenshot_filename = f"scraper_run_{run.id}_page.png"
@@ -130,12 +193,12 @@ def scrape_tesla_leads() -> Dict:
             # Ensure static directory exists
             os.makedirs('/app/static', exist_ok=True)
             
-            logger.info(f"💾 Saving screenshot to {screenshot_full_path}")
+            logger.info(f"💾 Sauvegarde screenshot vers {screenshot_full_path}")
             page.screenshot(path=screenshot_full_path, full_page=True)
             run.screenshot_path = screenshot_filename
             db.session.commit()
             
-            logger.info(f"✅ Screenshot saved successfully: {screenshot_filename}")
+            logger.info(f"✅ Screenshot sauvegardé: {screenshot_filename}")
             
             # Wait for content to load
             logger.info("⏳ Attente du chargement du contenu (5 secondes pour Angular)...")
