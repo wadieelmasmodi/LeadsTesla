@@ -102,23 +102,35 @@ def scrape_tesla_leads() -> Dict:
             if cookies:
                 logger.info(f"📦 {len(cookies)} cookies chargés depuis le fichier")
                 
-                # Group cookies by domain
-                cookies_by_domain = {}
-                for cookie in cookies:
-                    domain = cookie.get('domain', '')
-                    if domain not in cookies_by_domain:
-                        cookies_by_domain[domain] = []
-                    cookies_by_domain[domain].append(cookie)
+                # Filter cookies - only keep Tesla domains
+                tesla_cookies = [c for c in cookies if 'tesla.com' in c.get('domain', '').lower()]
                 
-                logger.info(f"🌐 Domaines trouvés: {list(cookies_by_domain.keys())}")
+                if not tesla_cookies:
+                    logger.warning("⚠️ AUCUN COOKIE TESLA DÉTECTÉ!")
+                    logger.warning("Les cookies chargés proviennent d'autres domaines (ex: api2.energum.earth)")
+                    logger.warning("Le scraper va fallback au login classique")
+                    should_login = True
+                elif len(tesla_cookies) < len(cookies):
+                    non_tesla = len(cookies) - len(tesla_cookies)
+                    logger.warning(f"⚠️ {non_tesla} cookies ignorés (domaines non-Tesla)")
+                    logger.info(f"✅ {len(tesla_cookies)} cookies Tesla détectés")
                 
-                # Inject cookies for each domain
-                injected_count = 0
-                failed_count = 0
-                
-                for domain, domain_cookies in cookies_by_domain.items():
-                    # Determine the URL to navigate to for this domain
-                    if 'tesla.com' in domain:
+                if tesla_cookies:
+                    # Group Tesla cookies by domain
+                    cookies_by_domain = {}
+                    for cookie in tesla_cookies:
+                        domain = cookie.get('domain', '')
+                        if domain not in cookies_by_domain:
+                            cookies_by_domain[domain] = []
+                        cookies_by_domain[domain].append(cookie)
+                    
+                    logger.info(f"🌐 Domaines Tesla trouvés: {list(cookies_by_domain.keys())}")
+                    
+                    # Inject cookies for each domain
+                    injected_count = 0
+                    failed_count = 0
+                    
+                    for domain, domain_cookies in cookies_by_domain.items():
                         # Navigate to the appropriate Tesla domain
                         if domain.startswith('.'):
                             domain_clean = domain[1:]  # Remove leading dot
@@ -160,10 +172,17 @@ def scrape_tesla_leads() -> Dict:
                         except Exception as e:
                             logger.error(f"❌ Erreur navigation vers {nav_url}: {e}")
                             failed_count += len(domain_cookies)
-                
-                logger.info(f"📊 Résultat injection: {injected_count} réussis, {failed_count} échoués")
-                run.phase_connexion = f"Cookies: {injected_count} injectés"
-                db.session.commit()
+                    
+                    logger.info(f"📊 Résultat injection: {injected_count} réussis, {failed_count} échoués")
+                    if injected_count > 0:
+                        run.phase_connexion = f"Cookies: {injected_count} injectés ✅"
+                        should_login = False
+                    else:
+                        logger.warning("⚠️ Aucun cookie injecté, passage au login classique")
+                        should_login = True
+                    db.session.commit()
+                else:
+                    should_login = True
             
             # Now navigate to portal with cookies
             logger.info(f"🔗 Navigation vers {PORTAL_URL} avec cookies...")
