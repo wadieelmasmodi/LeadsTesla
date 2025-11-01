@@ -9,7 +9,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from itsdangerous import URLSafeTimedSerializer
 from flask_cors import CORS
 import requests
-from models import db, User, LoginAttempt, Lead, ScraperAttempt
+from models import db, User, LoginAttempt, Lead, ScraperAttempt, ScraperRun
 import threading
 from scraper import fetch_leads
 from config import PORTAL_URL
@@ -99,17 +99,12 @@ def dashboard():
     active_tab = request.args.get('tab', 'leads')
 
     latest_leads = Lead.query.order_by(Lead.fetched_at.desc()).paginate(page=leads_page, per_page=10, error_out=False)
-
-    successful_scraper_logins = ScraperAttempt.query.filter_by(success=True)\
-        .order_by(ScraperAttempt.timestamp.desc()).paginate(page=success_page, per_page=10, error_out=False)
-
-    failed_scraper_logins = ScraperAttempt.query.filter_by(success=False)\
-        .order_by(ScraperAttempt.timestamp.desc()).paginate(page=failed_page, per_page=10, error_out=False)
+    scraper_page = int(request.args.get('scraper_page', 1))
+    scraper_runs = ScraperRun.query.order_by(ScraperRun.timestamp.desc()).paginate(page=scraper_page, per_page=10, error_out=False)
 
     return render_template('dashboard.html',
                          latest_leads=latest_leads,
-                         successful_scraper_logins=successful_scraper_logins,
-                         failed_scraper_logins=failed_scraper_logins,
+                         scraper_runs=scraper_runs,
                          active_tab=active_tab,
                          portal_url=PORTAL_URL)
 

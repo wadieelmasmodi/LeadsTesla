@@ -11,7 +11,7 @@ from playwright.sync_api import sync_playwright
 from config import PORTAL_URL, PAGE_TIMEOUT, TABLE_SOURCES
 from utils_text import normalize_key
 from auth import login_if_needed
-from models import db, ScraperAttempt
+from models import db, ScraperAttempt, ScraperRun
 from scraper_status import add_message, set_running
 
 def extract_headers(table) -> List[str]:
@@ -64,12 +64,16 @@ def random_delay():
     time.sleep(delay)
 
 def fetch_leads(logger: logging.Logger) -> List[Dict]:
-    """Fetch all leads from Tesla Partner Portal.
-
-    Logs progress at key steps so callers can follow what happened.
-    Raises exceptions on critical failures so callers can record attempt status.
-    """
+    """Fetch all leads from Tesla Partner Portal and log phases in ScraperRun."""
     leads: List[Dict] = []
+    run = ScraperRun(
+        timestamp=datetime.utcnow(),
+        phase_connexion="Démarrage",
+        phase_extraction="En attente",
+        status="pending"
+    )
+    db.session.add(run)
+    db.session.commit()
     logger.info("Scraper: starting new run")
     add_message("Scraper: starting new run")
     set_running(True)
@@ -81,6 +85,8 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
         try:
             logger.info(f"Scraper: navigating to {PORTAL_URL}")
             add_message("Navigating to portal")
+            run.phase_connexion = "Navigation vers le portail"
+            db.session.commit()
             page.goto(PORTAL_URL, timeout=PAGE_TIMEOUT * 1000)
             logger.info("Scraper: page loaded, performing login if needed")
             add_message("Page loaded; checking login")
@@ -88,18 +94,24 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                 login_if_needed(page)
                 logger.info("Scraper: login check complete")
                 add_message("Login check complete")
+                run.phase_connexion = "Connexion réussie"
+                db.session.commit()
             except Exception as e:
                 logger.error(f"Scraper: login failed or raised: {e}")
                 add_message(f"Login failed: {e}")
+                run.phase_connexion = f"Échec connexion: {e}"
+                run.status = "failed"
+                run.details = str(e)
+                db.session.commit()
                 raise
 
             logger.info("Scraper: waiting for page load to complete")
             add_message("Waiting for page load to complete")
-            
-            # Attendre que la page soit complètement chargée
             page.wait_for_load_state('networkidle', timeout=PAGE_TIMEOUT * 1000)
             
             # Wait for Angular app to be ready
+            run.phase_extraction = "Initialisation Angular"
+            db.session.commit()
             logger.info("Scraper: waiting for Angular app to initialize")
             add_message("Waiting for Angular app to initialize")
             try:
@@ -130,6 +142,8 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
                 page.screenshot(path="angular_init_failed.png")
             
             # Wait for global loader to disappear
+            run.phase_extraction = "Attente disparition loader"
+            db.session.commit()
             logger.info("Scraper: waiting for main loader to disappear")
             add_message("Waiting for loader to disappear")
             try:
@@ -141,6 +155,8 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
             page.wait_for_timeout(2000)
             
             # Verify content presence
+            run.phase_extraction = "Vérification du contenu"
+            db.session.commit()
             logger.info("Scraper: waiting for content to be ready")
             add_message("Waiting for content to be ready")
             
@@ -158,7 +174,10 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
             
             try:
                 # Take screenshot before looking for content
-                page.screenshot(path="pre_content_check.png")
+                screenshot_path = f"scraper_run_{run.id}_pre_content.png"
+                page.screenshot(path=f"static/{screenshot_path}")
+                run.screenshot_path = screenshot_path
+                db.session.commit()
                 logger.info("Saved pre-content screenshot")
                 
                 # Try each selector individually first
@@ -210,9 +229,13 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
             tables = page.query_selector_all('table')
             logger.info(f"Scraper: found {len(tables)} table(s) on the page")
             add_message(f"Found {len(tables)} table(s) on the page")
+            run.phase_extraction = f"Tables détectées: {len(tables)}"
+            db.session.commit()
             if not tables:
                 logger.warning("Scraper: no tables found — returning empty list")
                 add_message("No tables found — returning empty list")
+                run.status = "success"
+                db.session.commit()
                 return []
 
             for i, table in enumerate(tables):
@@ -240,10 +263,16 @@ def fetch_leads(logger: logging.Logger) -> List[Dict]:
 
             logger.info(f"Scraper: total leads extracted: {len(leads)}")
             add_message(f"Total leads extracted: {len(leads)}")
+            run.phase_extraction = f"Extraction terminée: {len(leads)} leads"
+            run.status = "success"
+            db.session.commit()
 
         except Exception as e:
             logger.error(f"Scraper: unexpected error during fetch_leads: {e}")
             add_message(f"Error during fetch: {e}")
+            run.status = "failed"
+            run.details = str(e)
+            db.session.commit()
             raise
         finally:
             try:

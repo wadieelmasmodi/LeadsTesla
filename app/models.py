@@ -29,11 +29,13 @@ class LoginAttempt(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     ip_address = db.Column(db.String(45))
 
-class Lead(db.Model):
-    """Model to store leads from Tesla Portal."""
+
+class ScraperRun(db.Model):
+    """Model to store each execution of the Tesla scraper with phase details and screenshot."""
     id = db.Column(db.Integer, primary_key=True)
-    source = db.Column(db.String(50))
-    key = db.Column(db.String(50), unique=True)
-    fetched_at = db.Column(db.DateTime)
-    data = db.Column(db.JSON)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    phase_connexion = db.Column(db.String(120))
+    phase_extraction = db.Column(db.String(120))
+    screenshot_path = db.Column(db.String(256), nullable=True)
+    status = db.Column(db.String(32), default='pending')  # success, failed, pending
+    details = db.Column(db.Text, nullable=True)

@@ -3,13 +3,6 @@
 {% block content %}
 <h2>Dashboard Tesla Leads</h2>
 
-<!-- Scraper progress panel -->
-<div class="mb-3">
-    <button class="btn btn-sm btn-outline-secondary" id="toggle-scrape-log" type="button">Afficher le journal du scraper</button>
-    <div id="scrape-progress" class="mt-2" style="display:none; max-height:240px; overflow:auto; background:#f8f9fa; border:1px solid #e9ecef; padding:8px;">
-        <ul id="scrape-messages" class="list-unstyled mb-0"></ul>
-    </div>
-</div>
 
 <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     <li class="nav-item" role="presentation">
@@ -19,12 +12,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link {% if active_tab == 'success' %}active{% endif %}" id="success-tab" data-bs-toggle="tab" data-bs-target="#success" type="button" role="tab">
-            Connexions Tesla réussies
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link {% if active_tab == 'failed' %}active{% endif %}" id="failed-tab" data-bs-toggle="tab" data-bs-target="#failed" type="button" role="tab">
-            Connexions Tesla échouées
+            Tesla Scraper
         </button>
     </li>
 </ul>
@@ -95,7 +83,7 @@
         </div>
     </div>
 
-    <!-- Connexions Tesla réussies tab -->
+    <!-- Tesla Scraper tab -->
     <div class="tab-pane fade {% if active_tab == 'success' %}show active{% endif %}" id="success" role="tabpanel">
         <div class="mt-4">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -110,95 +98,45 @@
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>IP</th>
-                            <th>Status</th>
+                            <th>Date & Heure</th>
+                            <th>Connexion Tesla</th>
+                            <th>Extraction</th>
+                            <th>Image (PNG)</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for login in successful_scraper_logins.items %}
+                        {% for run in scraper_runs.items %}
                         <tr>
-                            <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                            <td>{{ login.ip_address }}</td>
-                            <td><span class="badge bg-success">Réussi</span></td>
+                            <td>{{ run.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>{{ run.phase_connexion }}</td>
+                            <td>{{ run.phase_extraction }}</td>
+                            <td>
+                                {% if run.screenshot_path %}
+                                <a href="{{ url_for('static', filename=run.screenshot_path) }}" target="_blank">
+                                    <img src="{{ url_for('static', filename=run.screenshot_path) }}" alt="screenshot" style="max-width:120px;max-height:80px;" />
+                                </a>
+                                {% else %}
+                                <span class="text-muted">Aucune image</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
-
-                <!-- Pagination for successful connections -->
-                <nav aria-label="Success pagination">
+                <!-- Pagination for scraper runs -->
+                <nav aria-label="Scraper runs pagination">
                     <ul class="pagination">
-                        {% if successful_scraper_logins.has_prev %}
+                        {% if scraper_runs.has_prev %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('dashboard', success_page=successful_scraper_logins.prev_num, tab='success') }}">&laquo; Précédent</a>
+                            <a class="page-link" href="{{ url_for('dashboard', scraper_page=scraper_runs.prev_num, tab='success') }}">&laquo; Précédent</a>
                         </li>
                         {% else %}
                         <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
                         {% endif %}
-
-                        <li class="page-item disabled"><span class="page-link">Page {{ successful_scraper_logins.page }} / {{ successful_scraper_logins.pages }}</span></li>
-
-                        {% if successful_scraper_logins.has_next %}
+                        <li class="page-item disabled"><span class="page-link">Page {{ scraper_runs.page }} / {{ scraper_runs.pages }}</span></li>
+                        {% if scraper_runs.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="{{ url_for('dashboard', success_page=successful_scraper_logins.next_num, tab='success') }}">Suivant &raquo;</a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
-                        {% endif %}
-                    </ul>
-                </nav>
-            </div>
-        </div>
-    </div>
-
-    <!-- Connexions Tesla échouées tab -->
-    <div class="tab-pane fade {% if active_tab == 'failed' %}show active{% endif %}" id="failed" role="tabpanel">
-        <div class="mt-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <div></div>
-                <div>
-                    <form method="post" action="{{ url_for('scrape_now', tab='failed') }}">
-                        <button type="submit" class="btn btn-warning">Scrape Tesla Leads now</button>
-                    </form>
-                </div>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>IP</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for login in failed_scraper_logins.items %}
-                        <tr>
-                            <td>{{ login.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
-                            <td>{{ login.ip_address }}</td>
-                            <td><span class="badge bg-danger">Échec</span></td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <!-- Pagination for failed connections -->
-                <nav aria-label="Failed pagination">
-                    <ul class="pagination">
-                        {% if failed_scraper_logins.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('dashboard', failed_page=failed_scraper_logins.prev_num, tab='failed') }}">&laquo; Précédent</a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
-                        {% endif %}
-
-                        <li class="page-item disabled"><span class="page-link">Page {{ failed_scraper_logins.page }} / {{ failed_scraper_logins.pages }}</span></li>
-
-                        {% if failed_scraper_logins.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('dashboard', failed_page=failed_scraper_logins.next_num, tab='failed') }}">Suivant &raquo;</a>
+                            <a class="page-link" href="{{ url_for('dashboard', scraper_page=scraper_runs.next_num, tab='success') }}">Suivant &raquo;</a>
                         </li>
                         {% else %}
                         <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
