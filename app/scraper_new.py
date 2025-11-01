@@ -1,5 +1,6 @@
 """Web scraper for Tesla Partner Portal leads - Simplified version."""
 import os
+import sys
 import time
 from datetime import datetime
 from typing import Dict, List
@@ -8,6 +9,12 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 from models import db, ScraperRun, Lead
 from config import PORTAL_URL
 
+# Configure logging to stdout for visibility
+logging.basicConfig(
+    level=logging.INFO,
+    format='[SCRAPER] %(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 logger = logging.getLogger(__name__)
 
 def scrape_tesla_leads() -> Dict:
@@ -32,12 +39,14 @@ def scrape_tesla_leads() -> Dict:
     db.session.add(run)
     db.session.commit()
     
-    logger.info("Starting Tesla scraper")
+    logger.info("="*80)
+    logger.info("🚀 DÉMARRAGE DU SCRAPER TESLA")
+    logger.info("="*80)
     
     with sync_playwright() as p:
         try:
             # Launch browser
-            logger.info("Launching browser...")
+            logger.info("🌐 Lancement du navigateur Chromium...")
             run.phase_connexion = "Lancement du navigateur"
             db.session.commit()
             
@@ -59,17 +68,19 @@ def scrape_tesla_leads() -> Dict:
             page = context.new_page()
             
             # Navigate to Tesla portal
-            logger.info(f"Navigating to {PORTAL_URL}")
+            logger.info(f"🔗 Navigation vers {PORTAL_URL}")
             run.phase_connexion = "Navigation vers le portail"
             db.session.commit()
             
             page.goto(PORTAL_URL, wait_until='domcontentloaded', timeout=60000)
+            logger.info("✅ Page chargée (DOM ready)")
             
             # Wait for page to be interactive
             page.wait_for_load_state('networkidle', timeout=30000)
+            logger.info("✅ Page interactive (network idle)")
             
             # Check if login is needed
-            logger.info("Checking authentication...")
+            logger.info("🔐 Vérification de l'authentification...")
             run.phase_connexion = "Vérification authentification"
             db.session.commit()
             
@@ -77,63 +88,86 @@ def scrape_tesla_leads() -> Dict:
             email = os.getenv('TESLA_EMAIL')
             password = os.getenv('TESLA_PASS')
             
+            logger.info(f"📧 Email configuré: {'✅ Oui' if email else '❌ Non'}")
+            logger.info(f"🔑 Password configuré: {'✅ Oui' if password else '❌ Non'}")
+            
             if email and password:
                 try:
                     # Look for email input
-                    if page.locator('input[type="email"]').count() > 0:
-                        logger.info("Login form detected, attempting login...")
+                    email_inputs = page.locator('input[type="email"]').count()
+                    logger.info(f"🔍 Champs email trouvés: {email_inputs}")
+                    
+                    if email_inputs > 0:
+                        logger.info("🔐 Formulaire de login détecté, authentification en cours...")
                         page.fill('input[type="email"]', email)
+                        logger.info("✅ Email renseigné")
+                        
                         page.fill('input[type="password"]', password)
+                        logger.info("✅ Password renseigné")
+                        
                         page.click('button[type="submit"]')
+                        logger.info("⏳ Clic sur le bouton de connexion, attente de la réponse...")
+                        
                         page.wait_for_load_state('networkidle', timeout=30000)
+                        logger.info("✅ Authentification réussie!")
                         run.phase_connexion = "Authentification réussie"
                     else:
+                        logger.info("✅ Déjà authentifié (pas de formulaire de login)")
                         run.phase_connexion = "Déjà authentifié"
                 except Exception as e:
-                    logger.warning(f"Login attempt failed: {e}")
+                    logger.error(f"❌ Erreur lors du login: {e}")
                     run.phase_connexion = f"Erreur login: {str(e)[:50]}"
             else:
-                logger.warning("No credentials provided, assuming already logged in")
+                logger.warning("⚠️ Pas de credentials fournis, on suppose être déjà connecté")
                 run.phase_connexion = "Pas de credentials (session existante?)"
             
             db.session.commit()
             
             # Take screenshot for debugging
-            screenshot_path = f"scraper_run_{run.id}_page.png"
-            page.screenshot(path=f"app/static/{screenshot_path}", full_page=True)
-            run.screenshot_path = screenshot_path
+            screenshot_filename = f"scraper_run_{run.id}_page.png"
+            screenshot_full_path = os.path.join('/app/static', screenshot_filename)
+            
+            # Ensure static directory exists
+            os.makedirs('/app/static', exist_ok=True)
+            
+            logger.info(f"💾 Saving screenshot to {screenshot_full_path}")
+            page.screenshot(path=screenshot_full_path, full_page=True)
+            run.screenshot_path = screenshot_filename
             db.session.commit()
             
-            logger.info("Screenshot saved")
+            logger.info(f"✅ Screenshot saved successfully: {screenshot_filename}")
             
             # Wait for content to load
-            logger.info("Waiting for page content...")
+            logger.info("⏳ Attente du chargement du contenu (5 secondes pour Angular)...")
             run.phase_extraction = "Attente du contenu"
             db.session.commit()
             
             time.sleep(5)  # Give Angular time to render
             
             # Extract page content
-            logger.info("Analyzing page content...")
+            logger.info("🔍 Analyse du contenu de la page...")
             run.phase_extraction = "Analyse du contenu"
             db.session.commit()
             
             # Get all text content
             page_text = page.inner_text('body')
+            logger.info(f"📄 Longueur du contenu texte: {len(page_text)} caractères")
+            logger.info(f"📄 Aperçu du contenu (100 premiers caractères): {page_text[:100]}")
             
             # Look for tables
             tables = page.locator('table').all()
-            logger.info(f"Found {len(tables)} tables on page")
+            logger.info(f"📊 Nombre de tableaux trouvés: {len(tables)}")
             
             # Extract data from tables
             leads_data = []
             
             for idx, table in enumerate(tables):
-                logger.info(f"Processing table {idx + 1}")
+                logger.info(f"📊 Traitement du tableau {idx + 1}/{len(tables)}...")
                 
                 try:
                     # Get all rows
                     rows = table.locator('tr').all()
+                    logger.info(f"   ↳ Nombre de lignes: {len(rows)}")
                     
                     if len(rows) > 0:
                         # First row might be headers
@@ -144,7 +178,7 @@ def scrape_tesla_leads() -> Dict:
                         for cell in header_cells:
                             headers.append(cell.inner_text().strip())
                         
-                        logger.info(f"Table {idx + 1} headers: {headers}")
+                        logger.info(f"   ↳ En-têtes: {headers}")
                         
                         # Process data rows
                         for row_idx, row in enumerate(rows[1:], 1):
@@ -161,14 +195,17 @@ def scrape_tesla_leads() -> Dict:
                                     'row': row_idx,
                                     'data': row_data
                                 })
+                                
+                        logger.info(f"   ✅ {len(rows)-1} lignes de données extraites")
                 
                 except Exception as e:
-                    logger.error(f"Error processing table {idx + 1}: {e}")
+                    logger.error(f"   ❌ Erreur traitement tableau {idx + 1}: {e}")
             
             # Save leads to database
-            logger.info(f"Extracted {len(leads_data)} leads")
+            logger.info(f"💾 Sauvegarde de {len(leads_data)} leads dans la base de données...")
             run.phase_extraction = f"Extraction: {len(leads_data)} leads trouvés"
             
+            saved_count = 0
             for lead_data in leads_data:
                 # Create unique key
                 key = f"table{lead_data['table']}_row{lead_data['row']}_{int(time.time())}"
@@ -181,8 +218,11 @@ def scrape_tesla_leads() -> Dict:
                         data=lead_data['data']
                     )
                     db.session.add(lead)
+                    saved_count += 1
                 except Exception as e:
-                    logger.error(f"Error saving lead: {e}")
+                    logger.error(f"❌ Erreur sauvegarde lead: {e}")
+            
+            logger.info(f"✅ {saved_count}/{len(leads_data)} leads sauvegardés")
             
             db.session.commit()
             
@@ -196,10 +236,18 @@ def scrape_tesla_leads() -> Dict:
             result['leads_count'] = len(leads_data)
             result['leads'] = leads_data
             
-            logger.info("Scraping completed successfully")
+            logger.info("="*80)
+            logger.info("✅ SCRAPING TERMINÉ AVEC SUCCÈS")
+            logger.info(f"📊 {len(tables)} tableaux analysés")
+            logger.info(f"💾 {len(leads_data)} leads extraits")
+            logger.info("="*80)
             
         except Exception as e:
-            logger.error(f"Scraping failed: {e}", exc_info=True)
+            logger.error("="*80)
+            logger.error(f"❌ ÉCHEC DU SCRAPING: {e}")
+            logger.error("="*80)
+            logger.error("Stack trace:", exc_info=True)
+            
             run.status = "failed"
             run.phase_extraction = "Échec"
             run.details = str(e)
