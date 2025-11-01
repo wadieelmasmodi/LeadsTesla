@@ -14,15 +14,18 @@ import threading
 from config import PORTAL_URL
 from logger import get_logger
 
+# Initialize logger for web module
+web_logger = get_logger('WEB')
+
 # Try to import scraper - log error if it fails
 try:
     from scraper_selenium import scrape_tesla_leads
     SCRAPER_AVAILABLE = True
-    print("✅ Scraper Selenium imported successfully")
+    web_logger.info("Scraper Selenium imported successfully")
 except Exception as e:
     SCRAPER_AVAILABLE = False
-    print(f"⚠️ Scraper import failed: {e}")
-    print("Le scraper ne sera pas disponible")
+    web_logger.error(f"Scraper import failed: {e}")
+    web_logger.warning("Le scraper ne sera pas disponible")
     # Define a dummy function
     def scrape_tesla_leads():
         return {'status': 'failed', 'message': 'Scraper not available - Selenium not installed', 'leads_count': 0, 'leads': []}
@@ -45,7 +48,7 @@ ADMIN_EMAIL = "contact@energum.earth"
 app = create_app()
 CORS(app)
 SECRET_KEY = app.config['SECRET_KEY']
-logger = get_logger(__name__)
+logger = get_logger('WEB')
 
 # Initialize extensions
 login_manager = LoginManager()
@@ -53,9 +56,6 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 
 # Initialize serializer for email tokens
-serializer = URLSafeTimedSerializer(SECRET_KEY)
-
-logger = get_logger(__name__)
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 @login_manager.user_loader
