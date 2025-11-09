@@ -1,0 +1,15 @@
+{
+  "name": "solar-landing-page",
+  "description": "Landing page moderne pour collecte de leads solaires",
+  "type": "dockerfile",
+  "buildPack": "dockerfile",
+  "port": 3000,
+  "dockerfilePath": "./Dockerfile",
+  "dockerComposeFile": "./docker-compose.yml",
+  "healthCheckPath": "/",
+  "domains": [],
+  "environment": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
+}
